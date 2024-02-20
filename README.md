@@ -1,0 +1,1 @@
+This is an experimental project to generate a single-page document with pictures and text.  It is not ready for production use, and is still a work in progress.

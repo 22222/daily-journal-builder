@@ -1,0 +1,672 @@
+import { DirectedGraph } from "graphology";
+import { dijkstra } from "graphology-shortest-path";
+
+export interface LayoutItem {
+  key: string;
+  width: number;
+  height: number;
+  rowSpan?: 1 | 2;
+  featured?: boolean;
+}
+
+export interface Layout<T = LayoutItem> {
+  rows: LayoutRow<T>[];
+  cells?: Array<LayoutCell<T>>;
+  width: number;
+  height: number;
+}
+
+// export interface LayoutGrid<T = LayoutItem> {
+//   rows: number;
+//   columns: number;
+//   items: Array<LayoutGridItem<T>>;
+// }
+
+// export interface LayoutGridItem<T = LayoutItem> {
+//   /**
+//    * The cells in this grid item.
+//    */
+//   cells: LayoutCell<T>[];
+
+//   /**
+//    * The one-based grid row number of this item.
+//    */
+//   row: number;
+
+//   /**
+//    * The number of grid rows spanned by this item.
+//    */
+//   rowSpan?: 2;
+
+//   /**
+//    * The one-based grid column number of this item.
+//    */
+//   column: number;
+
+//   /**
+//    * The number of grid columns spanned by this item.
+//    */
+//   columnSpan?: 2 | 3;
+// }
+
+export interface LayoutRow<T = LayoutItem> {
+  /**
+   * The cells in this row.
+   */
+  cells: LayoutCell<T>[];
+
+  // /**
+  //  * Any child rows.
+  //  * This will only be used if this row contains items that span more than one row.
+  //  * If this is defined, it will directly or indirectly contain all of the cells in this row's "cells" property
+  //  * (so you should use either cells or rows, but not both).
+  //  */
+  // rows?: LayoutRow<T>[];
+
+  /**
+   * The total width of this row.
+   */
+  width: number;
+
+  /**
+   * The total height of this row.
+   */
+  height: number;
+}
+
+export interface LayoutCell<T = LayoutItem> extends LayoutCellBase<T> {
+  /**
+   * The width of this cell in pixels or whatever unit was used when building the layout.
+   */
+  width: number;
+
+  /**
+   * The height of this cell in pixels or whatever unit was used when building the layout.
+   */
+  height: number;
+}
+
+interface LayoutCellBase<T = LayoutItem> {
+  /**
+   * The item in this cell.
+   */
+  item: T;
+
+  /**
+   * The one-based number of the row that contains this cell.
+   * If this item spans more than one row, then this is the first row that contains the cell.
+   */
+  row: number;
+
+  /**
+   * The number of rows this row spans, or undefined if it spans a single row.
+   */
+  rowSpan?: 2;
+
+  /**
+   * The one-based number of this item within the row.
+   * If this item spans more than one row, then this is the order in the first row.
+   */
+  order: number;
+}
+
+export interface BuildLayoutOptions {
+  layoutWidth: number;
+  layoutHeight: number;
+  gap: number;
+}
+
+export function buildLayout<T extends LayoutItem>(items: T[], options: BuildLayoutOptions): Layout<T> {
+  const { layoutWidth, layoutHeight, gap } = options;
+  const { graph, sourceNode, targetNode } = buildLayoutGraph(items, options);
+
+  const nodeKeys = dijkstra.bidirectional(graph, sourceNode, targetNode, (_, edgeAttributes) => edgeAttributes.weight);
+  const rowStartItems = nodeKeys.map((nodeKey) => findLayoutItem(items, nodeKey)).filter((item) => item);
+  const cells: Array<LayoutCellBase & Partial<LayoutCell>> = [];
+  let rowHeights: number[] = [];
+  let rowIndex = -1;
+  let order = 1;
+  const rowHeightBuilder = new RowHeightBuilder(5);
+  for (const item of items) {
+    if (rowStartItems.includes(item)) {
+      if (rowIndex >= 0) {
+        rowHeights[rowIndex] = rowHeightBuilder.buildRowHeightForWidth(layoutWidth);
+        rowHeightBuilder.reset();
+      }
+      rowIndex++;
+      order = 1;
+    }
+    rowHeightBuilder.addItem(item.width, item.height);
+
+    const cell: LayoutCellBase<T> = {
+      item,
+      row: rowIndex + 1,
+      order,
+    };
+    if (item.rowSpan === 2) {
+      cell.rowSpan = 2;
+    }
+    cells.push(cell);
+    order++;
+  }
+  rowHeights[rowIndex] = rowHeightBuilder.buildRowHeightForWidth(layoutWidth);
+
+  const rows: LayoutRow[] = rowHeights.map((rowHeight) => ({ height: rowHeight | 0, width: 0, cells: [] }));
+
+  for (const cell of cells) {
+    const rowIndex = cell.row - 1;
+    const height = rowHeights[rowIndex];
+    const width = scaleWidthToTargetHeight(cell.item.width, cell.item.height, height);
+    cell.height = height | 0;
+    cell.width = width | 0;
+
+    const row = rows[rowIndex];
+    row.width += cell.width;
+    if (cell.order > 1) {
+      row.width += gap;
+    }
+    row.cells.push(cell as LayoutCell);
+  }
+
+  const layout: Layout = {
+    rows,
+    width: layoutWidth,
+    height: layoutHeight,
+  };
+  return layout as Layout<T>;
+}
+
+interface LayoutNode {
+  /**
+   * The first item in the current row.
+   */
+  item: LayoutItem | undefined;
+
+  /**
+   * The index of this node in the item array, or -1 if item is undefined.
+   */
+  i: number;
+
+  /**
+   * The remaining layout height to be filled by this and all successive rows.
+   */
+  remainingLayoutHeight: number;
+
+  /**
+   * If the previous row had any items that spanned more than one row, the details about that row necessary to process the current row.
+   */
+  previousRowInfo?: Span2RowInfo;
+
+  /**
+   * A key that uniquely identifies this node.
+   */
+  toString(): string;
+}
+
+interface LayoutNodeRowDependencies {
+  /**
+   * If the item has already filled a row, the height of that row.
+   * Otherwise undefined if the item has not filled any rows yet.
+   */
+  filledRowHeight: number | undefined;
+
+  filledRowItemCount: number | undefined;
+
+  /**
+   * The items that spans more than one row.
+   */
+  items: LayoutItem[];
+}
+
+interface LayoutEdgeAttributes {
+  /**
+   * The weight/score for this edge.  Smaller is better.
+   */
+  weight: number;
+}
+
+function generateNodeKey(
+  key: string,
+  remainingLayoutHeight: number,
+  previousRowInfo: Span2RowInfo | undefined,
+): string {
+  interface NodeKeyObj {
+    k: string;
+    h: number;
+    p?: Span2RowInfo;
+  }
+  const nodeKeyObj: NodeKeyObj = { k: key, h: remainingLayoutHeight | 0 };
+  if (previousRowInfo) {
+    nodeKeyObj.p = previousRowInfo;
+  }
+  const nodeKey = JSON.stringify(nodeKeyObj);
+  return nodeKey;
+}
+
+function findLayoutItem(items: LayoutItem[], nodeKey: string): LayoutItem | undefined {
+  if (nodeKey === "end") {
+    return undefined;
+  }
+
+  let nodeKeyObj: { k?: string } | undefined;
+  try {
+    nodeKeyObj = JSON.parse(nodeKey);
+  } catch (err) {
+    nodeKeyObj = undefined;
+  }
+  const key = nodeKeyObj?.k;
+  if (!key) {
+    return undefined;
+  }
+  return items.find((item) => item.key === key);
+}
+
+export function buildLayoutGraph(
+  items: LayoutItem[],
+  options: BuildLayoutOptions,
+): { graph: DirectedGraph; sourceNode: LayoutNode; targetNode: LayoutNode } {
+  const { layoutWidth, layoutHeight, gap } = options;
+  const idealRowHeight = estimateIdealRowHeight(items, layoutWidth, layoutHeight);
+
+  const nodeMap = new Map<string, LayoutNode>();
+  const unprocessedNodeQueue: LayoutNode[] = [];
+  const graph = new DirectedGraph<{}, LayoutEdgeAttributes>();
+  const getOrCreateLayoutNode = (
+    item: LayoutItem,
+    remainingLayoutHeight: number,
+    previousRowInfo: Span2RowInfo | undefined,
+  ) => {
+    if (previousRowInfo && previousRowInfo.span2ItemCount === 0) {
+      previousRowInfo = undefined;
+    }
+
+    const key = generateNodeKey(item.key, remainingLayoutHeight, previousRowInfo);
+    let node = nodeMap.get(key);
+    if (!node) {
+      const i = items.indexOf(item);
+      node = {
+        item,
+        i,
+        remainingLayoutHeight,
+        previousRowInfo,
+        toString() {
+          return key;
+        },
+      };
+      nodeMap.set(key, node);
+      unprocessedNodeQueue.push(node);
+      graph.addNode(node);
+    }
+    return node;
+  };
+
+  const sourceNode = getOrCreateLayoutNode(items[0], layoutHeight - gap, undefined);
+  const targetNode: LayoutNode = {
+    item: undefined,
+    i: -1,
+    remainingLayoutHeight: 0,
+    toString() {
+      return "end";
+    },
+  };
+  graph.addNode(targetNode);
+
+  const rowHeightBuilder = new RowHeightBuilder(gap);
+  while (unprocessedNodeQueue.length > 0) {
+    const fromNode = unprocessedNodeQueue.pop()!;
+    const fromItem = items[fromNode.i];
+
+    rowHeightBuilder.reset();
+    rowHeightBuilder.addItem(fromItem.width, fromItem.height, fromItem.rowSpan);
+
+    let previousSpan2RowInfo = fromNode.previousRowInfo;
+    if (fromItem.rowSpan === 2) {
+      previousSpan2RowInfo = undefined;
+    }
+
+    const featuredItems: LayoutItem[] = [];
+    if (fromItem.featured) {
+      featuredItems.push(fromItem);
+    }
+
+    for (let i = fromNode.i + 1; i < items.length; i++) {
+      const toItem = items[i];
+      let rowHeight = rowHeightBuilder.buildRowHeightForWidth(layoutWidth);
+
+      let previousRowRemainingLayoutHeightAdjustment = 0;
+      let previousRowWeightAdjustment = 0;
+      if (previousSpan2RowInfo) {
+        const { currentRowHeight, previousRowHeight, spanHeight } = rowHeightBuilder.buildSpan2RowHeightsForWidth(
+          layoutWidth,
+          previousSpan2RowInfo,
+        );
+        if (previousRowHeight) {
+          rowHeight = currentRowHeight;
+
+          const oldPreviousRowHeight = Math.min(previousSpan2RowInfo.rowHeight, previousSpan2RowInfo.span2RowHeight);
+          const newPreviousRowHeight = previousRowHeight;
+          const previousRowHeightChange = newPreviousRowHeight - oldPreviousRowHeight;
+          previousRowRemainingLayoutHeightAdjustment = previousRowHeightChange;
+          previousRowWeightAdjustment =
+            Math.pow(idealRowHeight - newPreviousRowHeight, 2) - Math.pow(idealRowHeight - oldPreviousRowHeight, 2);
+        }
+      }
+
+      rowHeightBuilder.addItem(toItem.width, toItem.height, toItem.rowSpan);
+      if (toItem.rowSpan === 2) {
+        previousSpan2RowInfo = undefined;
+      }
+
+      let weight = Math.pow(idealRowHeight - rowHeight, 2);
+
+      // If we have any featured items in the row, then increase the cost based on how small the item is
+      // (so the paths where the featured items are large will have a smaller cost)
+      if (featuredItems.length > 0) {
+        let featuredItemWeightAdjustment = 0;
+        for (const featuredItem of featuredItems) {
+          const featuredItemWidth = scaleWidthToTargetHeight(featuredItem.width, featuredItem.height, rowHeight);
+          const featuredItemWidthDiff = layoutWidth - featuredItemWidth;
+          featuredItemWeightAdjustment += featuredItemWidthDiff * Math.log2(featuredItemWidthDiff);
+        }
+        weight += featuredItemWeightAdjustment;
+      }
+      if (toItem.featured) {
+        featuredItems.push(toItem);
+      }
+
+      const remainingLayoutHeight = fromNode.remainingLayoutHeight - rowHeight - gap;
+
+      // If we're over the remaining space, then this can't be a breakpoint.
+      // Unless we have some dependencies on the next row, because that might retroactively reduce the width of this and/or one of the previous rows.
+      if (remainingLayoutHeight < 0 && !rowHeightBuilder.span2RowHeightBuilder?.itemCount) {
+        continue;
+      }
+
+      const toNode = getOrCreateLayoutNode(
+        toItem,
+        remainingLayoutHeight + previousRowRemainingLayoutHeightAdjustment,
+        rowHeightBuilder.buildSpan2RowInfoOrUndefined(),
+      );
+      graph.addEdge(fromNode, toNode, { weight: weight + previousRowWeightAdjustment });
+    }
+
+    // If we're not over the height limit, we can also proceed to the end node.
+    const rowHeight = rowHeightBuilder.buildRowHeightForWidth(layoutWidth);
+    const remainingLayoutHeight = fromNode.remainingLayoutHeight - rowHeight - gap;
+    if (remainingLayoutHeight >= 0) {
+      let endWeight = Math.pow(remainingLayoutHeight, 3);
+
+      // If there are any new dependency items that were not resolved, then add a penalty for not expanding them to a second row.
+      if (rowHeightBuilder.span2RowHeightBuilder?.itemCount) {
+        const doubleIdealRowHeight = idealRowHeight * 2;
+        if (rowHeight < doubleIdealRowHeight) {
+          const unresolvedDependencyWeight = Math.pow(doubleIdealRowHeight - rowHeight, 2);
+          endWeight += unresolvedDependencyWeight;
+        }
+      }
+
+      graph.addEdge(fromNode, targetNode, { weight: endWeight });
+    }
+  }
+
+  return { graph, sourceNode, targetNode };
+}
+
+export interface Span2RowInfo {
+  rowHeight: number;
+  rowWidth: number;
+  itemCount: number;
+  span2RowWidth: number;
+  span2RowHeight: number;
+  span2ItemCount: number;
+}
+
+export class RowHeightBuilder {
+  gap: number;
+  itemCount: number;
+  rowWidth: number;
+  rowHeight: number;
+  span2RowHeightBuilder: RowHeightBuilder | undefined;
+
+  constructor(gap: number) {
+    this.gap = gap;
+    this.itemCount = 0;
+    this.rowWidth = 0;
+    this.rowHeight = 0;
+  }
+
+  addItem(width: number, height: number, rowSpan?: number) {
+    if (rowSpan === 2) {
+      if (!this.span2RowHeightBuilder) {
+        this.span2RowHeightBuilder = new RowHeightBuilder(this.gap);
+      }
+      this.span2RowHeightBuilder.addItem(width, height);
+      return;
+    }
+
+    if (this.itemCount === 0) {
+      this.rowWidth = width;
+      this.rowHeight = height;
+    } else {
+      if (height < this.rowHeight) {
+        this.rowWidth = scaleWidthToTargetHeight(this.rowWidth, this.rowHeight, height);
+        this.rowHeight = height;
+      }
+      const scaledWidth = scaleWidthToTargetHeight(width, height, this.rowHeight);
+      this.rowWidth += scaledWidth;
+    }
+    this.itemCount++;
+  }
+
+  buildRowHeightForWidth(layoutWidth: number): number {
+    const gap = this.gap;
+    let itemCount = this.itemCount;
+    let rowWidth = this.rowWidth;
+    let rowHeight = this.rowHeight;
+
+    if (this.span2RowHeightBuilder && this.span2RowHeightBuilder.itemCount > 0) {
+      itemCount += this.span2RowHeightBuilder.itemCount;
+
+      let span2RowWidth = this.span2RowHeightBuilder.rowWidth;
+      let span2RowHeight = this.span2RowHeightBuilder.rowHeight;
+      if (span2RowHeight < rowHeight) {
+        rowWidth = scaleWidthToTargetHeight(rowWidth, rowHeight, span2RowHeight);
+        rowHeight = span2RowHeight;
+      } else if (rowHeight < span2RowHeight) {
+        span2RowWidth = scaleWidthToTargetHeight(span2RowWidth, span2RowHeight, rowHeight);
+        span2RowHeight = rowHeight;
+      }
+      rowWidth += span2RowWidth;
+    }
+
+    return scaleRowHeightToTargetWidth(rowWidth, rowHeight, itemCount, gap, layoutWidth);
+  }
+
+  buildSpan2RowInfoOrUndefined(): Span2RowInfo | undefined {
+    if (!this.span2RowHeightBuilder || this.span2RowHeightBuilder.itemCount <= 0) {
+      return undefined;
+    }
+    const context: Span2RowInfo = {
+      rowHeight: this.rowHeight,
+      rowWidth: this.rowWidth,
+      itemCount: this.itemCount,
+      span2ItemCount: this.span2RowHeightBuilder.itemCount ?? 0,
+      span2RowHeight: this.span2RowHeightBuilder.rowHeight ?? 0,
+      span2RowWidth: this.span2RowHeightBuilder.rowWidth ?? 0,
+    };
+    return context;
+  }
+
+  buildSpan2RowHeightsForWidth(
+    layoutWidth: number,
+    previousRowHeightContext: Span2RowInfo,
+  ): { currentRowHeight: number; previousRowHeight: number | undefined; spanHeight: number | undefined } {
+    // If the previous row doesn't have any items that span into this row, then we don't have to adjust the heights.
+    if (previousRowHeightContext.span2ItemCount <= 0) {
+      return {
+        currentRowHeight: this.buildRowHeightForWidth(layoutWidth),
+        previousRowHeight: undefined,
+        spanHeight: undefined,
+      };
+    }
+
+    // If this row has items that span more than one row, then we'll ignore the rowSpan of the previous row.
+    // That's not ideal, but it keeps things from getting very complicated (where row dependencies could chain indefinitely).
+    if (this.span2RowHeightBuilder && this.span2RowHeightBuilder.itemCount > 0) {
+      return {
+        currentRowHeight: this.buildRowHeightForWidth(layoutWidth),
+        previousRowHeight: undefined,
+        spanHeight: undefined,
+      };
+    }
+
+    // If either row has no normal items, then we don't really have two rows to span.
+    if (this.itemCount === 0 || previousRowHeightContext.itemCount === 0) {
+      return {
+        currentRowHeight: this.buildRowHeightForWidth(layoutWidth),
+        previousRowHeight: undefined,
+        spanHeight: undefined,
+      };
+    }
+
+    const gapWidth1 = this.gap * (previousRowHeightContext.itemCount + previousRowHeightContext.span2ItemCount);
+    const allowedLayoutWidth1 = layoutWidth - gapWidth1;
+
+    const gapWidth2 = this.gap * (this.itemCount + previousRowHeightContext.span2ItemCount);
+    const allowedLayoutWidth2 = layoutWidth - gapWidth2;
+
+    let rowWidth1 = previousRowHeightContext.rowWidth;
+    let rowHeight1 = previousRowHeightContext.rowHeight;
+
+    let rowWidth2 = this.rowWidth;
+    let rowHeight2 = this.rowHeight;
+
+    let spanWidth = previousRowHeightContext.span2RowWidth;
+    let spanHeight = previousRowHeightContext.span2RowHeight;
+
+    // Scale both to the smaller height
+    if (rowWidth1 < rowWidth2) {
+      rowHeight2 = scaleHeightToTargetWidth(rowWidth2, rowHeight2, rowWidth1);
+      rowWidth2 = rowWidth1;
+    } else if (rowWidth2 < rowWidth1) {
+      rowHeight1 = scaleHeightToTargetWidth(rowWidth1, rowHeight1, rowWidth2);
+      rowWidth1 = rowWidth2;
+    }
+
+    // Adjust the span2 items to the new target height
+    spanWidth = scaleWidthToTargetHeight(spanWidth, spanHeight, rowHeight1 + rowHeight2);
+    spanHeight = rowHeight1 + rowHeight2;
+
+    const targetHeight1 = scaleHeightToTargetWidth(spanWidth + rowWidth1, rowHeight1, allowedLayoutWidth1);
+    const targetHeight2 = scaleHeightToTargetWidth(spanWidth + rowWidth2, rowHeight2, allowedLayoutWidth2);
+    const targetHeightSpan = targetHeight1 + this.gap + targetHeight2;
+    return { currentRowHeight: targetHeight2, previousRowHeight: targetHeight1, spanHeight: targetHeightSpan };
+  }
+
+  reset() {
+    this.itemCount = 0;
+    this.rowWidth = 0;
+    this.rowHeight = 0;
+    this.span2RowHeightBuilder?.reset();
+  }
+}
+
+// export class RowPairHeightBuilder {
+//   row1Builder: RowHeightBuilder;
+//   row2Builder: RowHeightBuilder;
+//   rowSpanBuilder: RowHeightBuilder;
+
+//   constructor(gap: number) {
+//     this.row1Builder = new RowHeightBuilder(gap);
+//     this.row2Builder = new RowHeightBuilder(gap);
+//     this.rowSpanBuilder = new RowHeightBuilder(gap);
+//   }
+
+//   addRow1Item(width: number, height: number) {
+//     this.row1Builder.addItem(width, height);
+//   }
+
+//   addRow1ItemGroup(groupWidth: number, height: number, itemCount: number) {
+//     this.row1Builder.addItemGroup(groupWidth, height, itemCount);
+//   }
+
+//   addRow2Item(width: number, height: number) {
+//     this.row2Builder.addItem(width, height);
+//   }
+
+//   addRow2ItemGroup(groupWidth: number, height: number, itemCount: number) {
+//     this.row2Builder.addItemGroup(groupWidth, height, itemCount);
+//   }
+
+//   addRowSpanItem(width: number, height: number) {
+//     this.rowSpanBuilder.addItem(width, height);
+//   }
+
+//   buildRowHeightsForWidth(layoutWidth: number): [number, number] {
+//     // const gapWidth = this.gap * this.itemCount;
+//     // const adjustedLayoutWidth = layoutWidth - gapWidth;
+//     // if (this.rowWidth <= adjustedLayoutWidth) {
+//     //   return this.rowHeight;
+//     // }
+//     // return scaleHeightToTargetWidth(this.rowWidth, this.rowHeight, adjustedLayoutWidth);
+
+//   }
+
+//   reset() {
+//     this.row1Builder.reset();
+//     this.row2Builder.reset();
+//     this.rowSpanBuilder.reset();
+//   }
+// }
+
+function estimateIdealRowHeight(items: LayoutItem[], layoutWidth: number, layoutHeight: number) {
+  const rows = estimateNumberOfRows(items, layoutWidth, layoutHeight);
+  const rowHeight = (layoutHeight / rows) | 0;
+  return rowHeight;
+}
+
+function estimateNumberOfRows(items: LayoutItem[], layoutWidth: number, layoutHeight: number) {
+  if (!items || items.length === 0) {
+    return 0;
+  }
+
+  const averageAspectRatio = items.reduce((sum, img) => sum + img.width / img.height, 0) / items.length;
+  const discount = 1;
+  const estimatedRows = Math.sqrt((averageAspectRatio * discount * items.length * layoutHeight) / layoutWidth);
+  return estimatedRows;
+}
+
+function scaleRowHeightToTargetWidth(
+  rowWidth: number,
+  rowHeight: number,
+  itemCount: number,
+  gap: number,
+  layoutWidth: number,
+) {
+  const gapWidth = gap * itemCount;
+  const allowedLayoutWidth = layoutWidth - gapWidth;
+  if (rowWidth <= allowedLayoutWidth) {
+    return rowHeight;
+  }
+  return scaleHeightToTargetWidth(rowWidth, rowHeight, allowedLayoutWidth);
+}
+
+function scaleWidthToTargetHeight(sourceWidth: number, sourceHeight: number, targetHeight: number): number {
+  if (sourceHeight === targetHeight) {
+    return sourceWidth;
+  }
+
+  const aspectRatio = sourceWidth / sourceHeight;
+  const targetWidth = targetHeight * aspectRatio;
+  return targetWidth;
+}
+
+function scaleHeightToTargetWidth(sourceWidth: number, sourceHeight: number, targetWidth: number): number {
+  if (sourceWidth === targetWidth) {
+    return sourceWidth;
+  }
+
+  const aspectRatio = sourceWidth / sourceHeight;
+  const targetHeight = targetWidth / aspectRatio;
+  return targetHeight;
+}

@@ -1,0 +1,4 @@
+root = false
+
+[*.css]
+max_line_length = 512

@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "lib": ["DOM", "DOM.Iterable", "ES2016", "ES2017.String", "ES2018.Promise"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "declaration": true,
+    "noEmit": true,
+    "outDir": "dist",
+
+    /* Bundler mode */
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": false,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+
+    "types": ["react/canary"]
+  },
+  "include": ["src"]
+}
