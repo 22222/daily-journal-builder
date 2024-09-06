@@ -1,18 +1,17 @@
 {
   "compilerOptions": {
-    "target": "ESNext",
-    "lib": ["DOM", "DOM.Iterable", "ES2016", "ES2017.String", "ES2018.Promise"],
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
-    "declaration": true,
-    "noEmit": true,
-    "outDir": "dist",
 
     /* Bundler mode */
-    "moduleResolution": "Bundler",
-    "resolveJsonModule": false,
-    "esModuleInterop": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
     "isolatedModules": true,
+    "noEmit": true,
     "jsx": "react-jsx",
 
     /* Linting */
@@ -20,9 +19,7 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
-    "forceConsistentCasingInFileNames": true,
-
-    "types": ["react/canary"]
   },
-  "include": ["src"]
+  "include": ["src"],
+  "references": [{ "path": "./tsconfig.node.json" }]
 }

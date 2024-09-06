@@ -48,6 +48,7 @@ import { useModal } from "./ui/useModal";
 import { useHistoryState } from "./useHistoryState";
 import { generateUuid } from "./uuid";
 import { convertSizeToInchesStringOrUndefined } from "./text-box-editor/Size";
+import { useAsync } from "./useAsync";
 
 export interface DailyJournalBuilderProps {
   initialData?: Partial<DailyJournalData>;
@@ -146,9 +147,9 @@ export function DailyJournalBuilder(props: DailyJournalBuilderProps) {
     const t2 = performance.now();
     console.log("Font size calculation took " + (t2 - t1) + " milliseconds.");
 
-    React.startTransition(() => {
-      setLayout(layout);
-    });
+    //React.startTransition(() => {
+    setLayout(layout);
+    //});
   }, [items]);
 
   const handleNew = () => {
@@ -709,25 +710,34 @@ interface ImageProps {
 function Image(props: ImageProps) {
   const { imageFilePromise, imageWidth, imageHeight, width, height } = props;
 
-  const imageFile = React.use(imageFilePromise);
+  //const imageFile = React.use(imageFilePromise);
+  const { data: imageFile, isPending, error } = useAsync(imageFilePromise);
   const [imageObjectUrl, setImageObjectUrl] = React.useState<string | undefined>();
   React.useEffect(() => {
-    if (!imageFile) {
+    if (!imageFile || isPending || error) {
       // Empty placeholder image
-      startTransition(() => {
-        setImageObjectUrl(`data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"/>`);
-      });
+      //startTransition(() => {
+      setImageObjectUrl(`data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"/>`);
+      //});
       return;
     }
 
     const objectURL = URL.createObjectURL(imageFile);
-    startTransition(() => {
-      setImageObjectUrl(objectURL);
-    });
+    //startTransition(() => {
+    setImageObjectUrl(objectURL);
+    //});
     return () => {
       URL.revokeObjectURL(objectURL);
     };
   }, [imageFile]);
+
+  // if (isPending) {
+  //   return (
+  //     <div className="spinner-border" role="status">
+  //       <span className="sr-only">Loading...</span>
+  //     </div>
+  //   );
+  // }
 
   return (
     <img

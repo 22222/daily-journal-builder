@@ -1,25 +1,27 @@
-import AliceRegular from "./Alice/Alice-Regular.ttf";
-import ArimoBold from "./Arimo/Arimo-Bold.ttf";
-import ArimoBoldItalic from "./Arimo/Arimo-BoldItalic.ttf";
-import ArimoItalic from "./Arimo/Arimo-Italic.ttf";
-import ArimoRegular from "./Arimo/Arimo-Regular.ttf";
-import ComicNeueBold from "./Comic_Neue/ComicNeue-Bold.ttf";
-import ComicNeueBoldItalic from "./Comic_Neue/ComicNeue-BoldItalic.ttf";
-import ComicNeueItalic from "./Comic_Neue/ComicNeue-Italic.ttf";
-import ComicNeueRegular from "./Comic_Neue/ComicNeue-Regular.ttf";
-import CousineBold from "./Cousine/Cousine-Bold.ttf";
-import CousineBoldItalic from "./Cousine/Cousine-BoldItalic.ttf";
-import CousineItalic from "./Cousine/Cousine-Italic.ttf";
-import CousineRegular from "./Cousine/Cousine-Regular.ttf";
-import DancingScriptBold from "./Dancing_Script/DancingScript-Bold.ttf";
-import DancingScriptRegular from "./Dancing_Script/DancingScript-Regular.ttf";
-import IndieFlowerRegular from "./Indie_Flower/IndieFlower-Regular.ttf";
-import TinosBold from "./Tinos/Tinos-Bold.ttf";
-import TinosBoldItalic from "./Tinos/Tinos-BoldItalic.ttf";
-import TinosItalic from "./Tinos/Tinos-Italic.ttf";
-import TinosRegular from "./Tinos/Tinos-Regular.ttf";
+import AliceRegular from "./Alice/Alice-Regular.ttf?url";
+import ArimoBold from "./Arimo/Arimo-Bold.ttf?url";
+import ArimoBoldItalic from "./Arimo/Arimo-BoldItalic.ttf?url";
+import ArimoItalic from "./Arimo/Arimo-Italic.ttf?url";
+import ArimoRegular from "./Arimo/Arimo-Regular.ttf?url";
+import ComicNeueBold from "./Comic_Neue/ComicNeue-Bold.ttf?url";
+import ComicNeueBoldItalic from "./Comic_Neue/ComicNeue-BoldItalic.ttf?url";
+import ComicNeueItalic from "./Comic_Neue/ComicNeue-Italic.ttf?url";
+import ComicNeueRegular from "./Comic_Neue/ComicNeue-Regular.ttf?url";
+import CousineBold from "./Cousine/Cousine-Bold.ttf?url";
+import CousineBoldItalic from "./Cousine/Cousine-BoldItalic.ttf?url";
+import CousineItalic from "./Cousine/Cousine-Italic.ttf?url";
+import CousineRegular from "./Cousine/Cousine-Regular.ttf?url";
+import DancingScriptBold from "./Dancing_Script/DancingScript-Bold.ttf?url";
+import DancingScriptRegular from "./Dancing_Script/DancingScript-Regular.ttf?url";
+import IndieFlowerRegular from "./Indie_Flower/IndieFlower-Regular.ttf?url";
+import TinosBold from "./Tinos/Tinos-Bold.ttf?url";
+import TinosBoldItalic from "./Tinos/Tinos-BoldItalic.ttf?url";
+import TinosItalic from "./Tinos/Tinos-Italic.ttf?url";
+import TinosRegular from "./Tinos/Tinos-Regular.ttf?url";
 
 import type { FontFace } from "./FontFace";
+
+//console.log("AliceRegular", AliceRegular);
 
 export interface FontFamily {
   Regular: string;
@@ -92,7 +94,7 @@ function pushFontFamilyFonts(
       fontFaceName: `${fontFamily}-Regular`,
       fontWeight: "normal",
       fontStyle: "normal",
-      base64: fontFamilyObj.Regular,
+      url: fontFamilyObj.Regular,
     });
   }
   if (fontFamilyObj.Bold) {
@@ -102,7 +104,7 @@ function pushFontFamilyFonts(
       fontFaceName: `${fontFamily}-Bold`,
       fontWeight: "bold",
       fontStyle: "normal",
-      base64: fontFamilyObj.Bold,
+      url: fontFamilyObj.Bold,
     });
   }
   if (fontFamilyObj.Italic) {
@@ -112,7 +114,7 @@ function pushFontFamilyFonts(
       fontFaceName: `${fontFamily}-Italic`,
       fontWeight: "normal",
       fontStyle: "italic",
-      base64: fontFamilyObj.Italic,
+      url: fontFamilyObj.Italic,
     });
   }
   if (fontFamilyObj.BoldItalic) {
@@ -122,7 +124,7 @@ function pushFontFamilyFonts(
       fontFaceName: `${fontFamily}-BoldItalic`,
       fontWeight: "bold",
       fontStyle: "italic",
-      base64: fontFamilyObj.BoldItalic,
+      url: fontFamilyObj.BoldItalic,
     });
   }
 }

@@ -16,7 +16,7 @@ export interface ModalProps {
   closeOnClickOutside?: boolean;
 }
 
-export function Modal({ children, closeOnClickOutside = false, onClose, size }: ModalProps): JSX.Element {
+export function Modal({ children, closeOnClickOutside = false, onClose, size }: ModalProps): React.ReactElement {
   return createPortal(
     <ModalPortal onClose={onClose} size={size} closeOnClickOutside={closeOnClickOutside}>
       {children}

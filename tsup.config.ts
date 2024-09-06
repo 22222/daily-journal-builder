@@ -5,7 +5,7 @@ export default defineConfig({
   clean: true,
   dts: true,
   format: ["esm"],
-  external: ["react"],
+  //external: ["react"],
   loader: {
     ".ttf": "base64",
   },

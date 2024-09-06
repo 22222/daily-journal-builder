@@ -36,14 +36,8 @@ jobs:
           node-version: 20
           cache: 'npm'
       - name: Install
-        run: npm ci --legacy-peer-deps
+        run: npm ci
       - name: Build
-        run: npm run build
-      - name: Install Demo
-        working-directory: ./demo
-        run: npm ci --legacy-peer-deps
-      - name: Build Demo
-        working-directory: ./demo
         run: npm run build -- --base=/daily-journal-builder/
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -51,7 +45,7 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           # Upload dist folder
-          path: './demo/dist'
+          path: './dist'
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

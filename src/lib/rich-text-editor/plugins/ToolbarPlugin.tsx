@@ -105,7 +105,7 @@ function EditorFontFamilyDropDown({
   editor: LexicalEditor;
   value: string;
   disabled?: boolean;
-}): JSX.Element {
+}): React.ReactElement {
   const handleClick = React.useCallback(
     (option: string) => {
       editor.update(() => {
@@ -188,7 +188,7 @@ function ElementFormatDropdown({
   );
 }
 
-export function ToolbarPlugin(): JSX.Element {
+export function ToolbarPlugin(): React.ReactElement {
   const [editor] = useLexicalComposerContext();
   const [activeEditor, setActiveEditor] = React.useState(editor);
   // const [fontSize, setFontSize] = React.useState<string>("15px");

@@ -1,18 +1,6 @@
-import "bootstrap/dist/css/bootstrap.css";
-import "./index.css";
-
 import React from "react";
-import ReactDOM from "react-dom/client";
-import { DailyJournalBuilder, DailyJournalItem, DailyJournalData } from "daily-journal-builder";
+import { DailyJournalBuilder, DailyJournalItem, DailyJournalData } from "../lib";
 import { generateRandomImage, generateRandomDimension, newRandom } from "./randomData";
-
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <section>
-      <DailyJournalBuilderApp />
-    </section>
-  </React.StrictMode>,
-);
 
 const includeRandomData = false;
 const [initialImageRecord, initialData] = (() => {
@@ -169,7 +157,7 @@ const [initialImageRecord, initialData] = (() => {
   return [imageRecord, initialData];
 })();
 
-function DailyJournalBuilderApp() {
+export function DailyJournalBuilderApp() {
   const [imageRecord, setImageRecord] = React.useState(initialImageRecord);
 
   const handleImageFilesUploaded = (fileList: FileList) => {

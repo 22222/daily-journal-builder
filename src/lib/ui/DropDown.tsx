@@ -38,7 +38,7 @@ export function DropDown({
   buttonLabel?: string;
   children: ReactNode;
   stopCloseOnClickSelf?: boolean;
-}): JSX.Element {
+}): React.ReactElement {
   const dropDownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [showDropDown, setShowDropDown] = useState(false);
@@ -106,7 +106,7 @@ export function DropDown({
     };
   }, [buttonRef, dropDownRef, showDropDown]);
 
-  let buttonChildren: JSX.Element;
+  let buttonChildren: React.ReactElement;
   if (buttonIcon) {
     buttonChildren = (
       <React.Fragment>
@@ -261,7 +261,7 @@ export function DropDownItem({
 
   useEffect(() => {
     if (ref && ref.current) {
-      registerItem(ref);
+      registerItem(ref as React.RefObject<HTMLButtonElement>);
     }
   }, [ref, registerItem]);
 

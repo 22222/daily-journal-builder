@@ -22,7 +22,7 @@ export interface EditorProps {
   contentEditableStyle?: React.CSSProperties;
 }
 
-export function Editor({ contentEditableStyle }: EditorProps): JSX.Element {
+export function Editor({ contentEditableStyle }: EditorProps): React.ReactElement {
   const [isSmallWidthViewport, setIsSmallWidthViewport] = React.useState<boolean>(false);
   React.useEffect(() => {
     const updateViewPortWidth = () => {

@@ -58,7 +58,7 @@ const basicColors: Array<`#${string}`> = [
 const WIDTH = 214;
 const HEIGHT = 150;
 
-export function ColorPicker({ color, onChange }: Readonly<ColorPickerProps>): JSX.Element {
+export function ColorPicker({ color, onChange }: Readonly<ColorPickerProps>): React.ReactElement {
   const [selfColor, setSelfColor] = React.useState(transformColor("hex", color));
   const [inputColor, setInputColor] = React.useState(color);
   const innerDivRef = React.useRef(null);
@@ -240,7 +240,7 @@ interface MoveWrapperProps {
   className?: string;
   style?: React.CSSProperties;
   onChange: (position: Position) => void;
-  children: JSX.Element;
+  children: React.ReactElement;
 }
 
 function MoveWrapper({ className, style, onChange, children }: MoveWrapperProps) {
@@ -432,7 +432,7 @@ function TextInput({
   placeholder?: string;
   value: string;
   type?: React.HTMLInputTypeAttribute;
-}): JSX.Element {
+}): React.ReactElement {
   return (
     <div
       style={{

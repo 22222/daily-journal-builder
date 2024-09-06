@@ -27,7 +27,7 @@ export function FontFamilyDropDown({
   onClick,
   value,
   disabled = false,
-}: FontFamilyDropDownProps): JSX.Element {
+}: FontFamilyDropDownProps): React.ReactElement {
   const handleClick = React.useCallback(
     (option: string) => {
       onClick(option);

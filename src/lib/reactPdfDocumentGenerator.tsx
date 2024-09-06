@@ -14,6 +14,8 @@ import {
 } from "./LengthValue";
 import { FontFace } from "./fonts/FontFace";
 
+if (!("__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED" in React)) (React as any).__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = {};
+
 export function generatePdfBlob(document: DailyJournalDocument, context: DailyJournalDocumentContext): Promise<Blob> {
   console.log("document", document);
   // Fonts appear to be a global resource?
@@ -26,11 +28,17 @@ export function generatePdfBlob(document: DailyJournalDocument, context: DailyJo
       continue;
     }
 
-    const fontFaces = grouping.map((font) => ({
-      src: `data:font/ttf;base64,${font.base64}`,
-      fontStyle: font.fontStyle,
-      fontWeight: font.fontWeight,
-    }));
+    const fontFaces = grouping.map((font) => {
+      let src = font.url;
+      if (!src) {
+        src = `data:font/ttf;base64,${font.base64}`;
+      }
+      return {
+        src: src,
+        fontStyle: font.fontStyle,
+        fontWeight: font.fontWeight,
+      };
+    });
 
     // Make sure we have all of the bold/italic variants (or we'll get an error when we try to generat the PDF).
     const normalFontFace = fontFaces.find((x) => x.fontWeight === "normal" && x.fontStyle === "normal");

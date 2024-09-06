@@ -11,7 +11,7 @@ export function EditorComposer({
 }: {
   initialEditorState?: InitialEditorStateType;
   children: React.ReactNode;
-}): JSX.Element {
+}): React.ReactElement {
   const initialConfig: InitialConfigType = {
     editorState,
     namespace: "RichTextEditor",

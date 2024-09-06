@@ -301,7 +301,7 @@ function isRootNode(node: SerializedLexicalNode): node is SerializedRootNode {
 }
 
 function createParagraphNode(): SerializedParagraphNode {
-  return { type: "paragraph", version: 1, format: "", indent: 0, direction: null, textFormat: 0, children: [] };
+  return { type: "paragraph", version: 1, format: "", textStyle: "", indent: 0, direction: null, textFormat: 0, children: [] };
 }
 
 function isParagraphNode(node: SerializedLexicalNode): node is SerializedParagraphNode {

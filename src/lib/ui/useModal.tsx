@@ -11,14 +11,14 @@ import React from "react";
 import { Modal } from "./Modal";
 
 export interface ShowModalOptions {
-  getContent: (onClose: () => void) => JSX.Element;
+  getContent: (onClose: () => void) => React.ReactElement;
   closeOnClickOutside?: boolean;
   size?: "sm" | "md" | "lg" | "xl";
 }
 
-export function useModal(): [JSX.Element | null, (options: ShowModalOptions) => void] {
+export function useModal(): [React.ReactElement | null, (options: ShowModalOptions) => void] {
   const [modalContent, setModalContent] = React.useState<null | {
-    content: JSX.Element;
+    content: React.ReactElement;
     closeOnClickOutside: boolean;
     size: "sm" | "md" | "lg" | "xl" | undefined;
   }>(null);

@@ -4,5 +4,6 @@ export interface FontFace {
   fontFamilyDisplayName?: string;
   fontWeight: "normal" | "bold";
   fontStyle: "normal" | "italic";
-  base64: string;
+  base64?: string;
+  url?: string;
 }
