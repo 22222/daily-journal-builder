@@ -383,6 +383,7 @@ export class RowHeightBuilder {
   rowWidth: number;
   rowHeight: number;
   flexibleRowWidth: number;
+  rowHeightFlexible: boolean;
 
   constructor(gap: number) {
     if (typeof gap !== "number" || isNaN(gap)) {
@@ -394,6 +395,7 @@ export class RowHeightBuilder {
     this.rowWidth = 0;
     this.rowHeight = 0;
     this.flexibleRowWidth = 0;
+    this.rowHeightFlexible = false;
   }
 
   addItem(width: number, height: number, flexibleAspectRatio: boolean | undefined) {
@@ -407,12 +409,18 @@ export class RowHeightBuilder {
     if (this.rowWidth === 0) {
       this.rowWidth = width;
       this.rowHeight = height;
+      if (flexibleAspectRatio) {
+        this.rowHeightFlexible = true;
+      }
     } else if (flexibleAspectRatio && height <= this.rowHeight) {
       this.flexibleRowWidth += width;
     } else {
       if (height < this.rowHeight) {
         this.rowWidth = scaleWidthToTargetHeight(this.rowWidth, this.rowHeight, height);
         this.rowHeight = height;
+      } else if (this.rowHeightFlexible) {
+        this.rowHeight = height;
+        this.rowHeightFlexible = false;
       }
       const scaledWidth = scaleWidthToTargetHeight(width, height, this.rowHeight);
       this.rowWidth += scaledWidth;
