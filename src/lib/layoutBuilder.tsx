@@ -9,6 +9,8 @@ export interface LayoutItem {
   featured?: boolean;
   flexibleAspectRatio?: boolean;
   maximizeWidth?: boolean;
+  minHeight?: number;
+  minWidth?: number;
 }
 
 export interface Layout<T = LayoutItem> {
@@ -330,7 +332,7 @@ export function buildLayoutGraph(
       }
 
       // If we have any flexible aspect ratio items in this row, then prefer to keep their widths as close to their target width as possible.
-      let weightAdjustment = 0;
+      let widthWeight = 0;
       if (flexibleAspectRatioItems.length > 0) {
         for (const flexibleAspectRatioItem of flexibleAspectRatioItems) {
           const preferredWidth = Math.min(flexibleAspectRatioItem.width, layoutWidth);
@@ -339,7 +341,7 @@ export function buildLayoutGraph(
           const scaledItemWidth = scaleWidthToTargetHeight(flexibleAspectRatioItem.width, itemHeight, rowHeight);
           const widthDiff = preferredWidth - scaledItemWidth;
           if (widthDiff > 0) {
-            weightAdjustment += widthDiff * Math.log2(widthDiff);
+            widthWeight += widthDiff * Math.log2(widthDiff);
           }
         }
       }
@@ -347,7 +349,11 @@ export function buildLayoutGraph(
         flexibleAspectRatioItems.push(toItem);
       }
 
-      const weight = Math.pow(modifiedIdealRowHeight - rowHeight, 2) + weightAdjustment;
+      const heightWeight =
+        modifiedIdealRowHeight < rowHeight
+          ? Math.abs(Math.pow(modifiedIdealRowHeight - rowHeight, 3))
+          : Math.pow(modifiedIdealRowHeight - rowHeight, 2);
+      const weight = heightWeight + widthWeight;
       const remainingLayoutHeight = fromNode.remainingLayoutHeight - rowHeight - gap;
 
       // If we're over the remaining space, then this can't be a breakpoint.
@@ -363,7 +369,7 @@ export function buildLayoutGraph(
     const rowHeight = rowHeightBuilder.buildRowHeightForWidth(layoutWidth);
     const remainingLayoutHeight = fromNode.remainingLayoutHeight - rowHeight - gap;
     if (remainingLayoutHeight >= 0) {
-      const endWeight = Math.pow(remainingLayoutHeight, 3);
+      const endWeight = Math.pow(remainingLayoutHeight, 2);
       graph.addEdge(fromNode, targetNode, { weight: endWeight });
     }
   }

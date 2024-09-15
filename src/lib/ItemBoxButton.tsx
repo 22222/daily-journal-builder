@@ -14,8 +14,17 @@ import {
   useRole,
 } from "@floating-ui/react";
 
-import { IconArrowLeft, IconArrowRight, IconPencilSquare, IconTrash, IconX, IconStar, IconStarFill } from "./icons";
 import type { DailyJournalDocumentItemBox } from "./DailyJournalDocument";
+import {
+  IconArrowLeft,
+  IconArrowRight,
+  IconChevronDoubleLeft,
+  IconChevronDoubleRight,
+  IconPencilSquare,
+  IconStar,
+  IconStarFill,
+  IconTrash,
+} from "./icons";
 
 export interface ItemBoxButtonProps {
   itemBox: DailyJournalDocumentItemBox;
@@ -23,13 +32,24 @@ export interface ItemBoxButtonProps {
   onClickDelete?: () => void;
   onClickMoveLeft?: () => void;
   onClickMoveRight?: () => void;
+  onClickMoveStart?: () => void;
+  onClickMoveEnd?: () => void;
   onClickToggleFeatured?: () => void;
   children: React.ReactNode;
 }
 
 export function ItemBoxButton(props: ItemBoxButtonProps) {
-  const { itemBox, onClickEdit, onClickDelete, onClickMoveLeft, onClickMoveRight, onClickToggleFeatured, children } =
-    props;
+  const {
+    itemBox,
+    onClickEdit,
+    onClickDelete,
+    onClickMoveLeft,
+    onClickMoveRight,
+    onClickMoveStart,
+    onClickMoveEnd,
+    onClickToggleFeatured,
+    children,
+  } = props;
   const [menuOpen, setMenuOpen] = React.useState(false);
   const { refs, floatingStyles, context } = useFloating({
     open: menuOpen,
@@ -82,6 +102,15 @@ export function ItemBoxButton(props: ItemBoxButtonProps) {
                 <div className="btn-group">
                   <button
                     className="btn btn-secondary"
+                    onClick={onClickMoveStart}
+                    disabled={!onClickMoveStart}
+                    title="Move to start"
+                    aria-label="Move to Start"
+                  >
+                    <IconChevronDoubleLeft />
+                  </button>
+                  <button
+                    className="btn btn-secondary"
                     onClick={onClickMoveLeft}
                     disabled={!onClickMoveLeft}
                     title="Move left"
@@ -97,6 +126,15 @@ export function ItemBoxButton(props: ItemBoxButtonProps) {
                     aria-label="Move Right"
                   >
                     <IconArrowRight />
+                  </button>
+                  <button
+                    className="btn btn-secondary"
+                    onClick={onClickMoveEnd}
+                    disabled={!onClickMoveEnd}
+                    title="Move to end"
+                    aria-label="Move to End"
+                  >
+                    <IconChevronDoubleRight />
                   </button>
                 </div>
                 <div className="btn-group">

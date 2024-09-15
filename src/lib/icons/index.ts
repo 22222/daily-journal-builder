@@ -8,6 +8,8 @@ export { IconBorderStyle } from "./IconBorderStyle";
 export { IconBorderStyleDashed } from "./IconBorderStyleDashed";
 export { IconBorderStyleDotted } from "./IconBorderStyleDotted";
 export { IconBorderStyleSolid } from "./IconBorderStyleSolid";
+export { IconChevronDoubleLeft } from "./IconChevronDoubleLeft";
+export { IconChevronDoubleRight } from "./IconChevronDoubleRight";
 export { IconChevronDown } from "./IconChevronDown";
 export { IconDash } from "./IconDash";
 export { IconFileEarmarkPlus } from "./IconFileEarmarkPlus";

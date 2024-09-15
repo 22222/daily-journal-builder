@@ -330,6 +330,18 @@ export function DailyJournalBuilder(props: DailyJournalBuilderProps) {
     });
   };
 
+  const handleMoveStart = (item: DailyJournalItem) => {
+    const i = items.indexOf(item);
+    if (i <= 0) {
+      return;
+    }
+
+    const newItems = [...items];
+    newItems[i] = newItems[0];
+    newItems[0] = item;
+    setItems(newItems);
+  };
+
   const handleMoveLeft = (item: DailyJournalItem) => {
     const i = items.indexOf(item);
     if (i <= 0) {
@@ -351,6 +363,18 @@ export function DailyJournalBuilder(props: DailyJournalBuilderProps) {
     const newItems = [...items];
     newItems[i] = newItems[i + 1];
     newItems[i + 1] = item;
+    setItems(newItems);
+  };
+
+  const handleMoveEnd = (item: DailyJournalItem) => {
+    const i = items.indexOf(item);
+    if (i < 0 || i >= items.length - 1) {
+      return;
+    }
+
+    const newItems = [...items];
+    newItems[i] = newItems[items.length - 1];
+    newItems[items.length - 1] = item;
     setItems(newItems);
   };
 
@@ -599,8 +623,10 @@ export function DailyJournalBuilder(props: DailyJournalBuilderProps) {
                 <div key={itemBox.key} style={itemBox.style}>
                   <ItemBoxButton
                     itemBox={itemBox}
+                    onClickMoveStart={itemIndex > 0 ? handleMoveStart.bind(undefined, item) : undefined}
                     onClickMoveLeft={itemIndex > 0 ? handleMoveLeft.bind(undefined, item) : undefined}
                     onClickMoveRight={itemIndex < items.length - 1 ? handleMoveRight.bind(undefined, item) : undefined}
+                    onClickMoveEnd={itemIndex < items.length - 1 ? handleMoveEnd.bind(undefined, item) : undefined}
                     onClickToggleFeatured={handleToggleFeatured.bind(undefined, item)}
                     onClickEdit={handleEdit.bind(undefined, item)}
                     onClickDelete={handleDelete.bind(undefined, item)}
