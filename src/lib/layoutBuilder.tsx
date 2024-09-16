@@ -103,23 +103,38 @@ export function buildLayout<T extends LayoutItem>(items: T[], options: BuildLayo
 
   const rowStartItems = nodeKeys.map((nodeKey) => findLayoutItem(items, nodeKey)).filter((item) => item);
   const cells: Array<LayoutCellBase & Partial<LayoutCell>> = [];
-  const rowHeights: Array<[number, number]> = [];
+  const rowContexts: Array<{
+    unscaledRowHeight: number;
+    rowHeight: number;
+    unscaledRowWidth: number;
+    flexibleItemCount: number;
+  }> = [];
   let rowIndex = -1;
   let order = 1;
   const rowHeightBuilder = new RowHeightBuilder(5);
+  let rowWidthBuilder = 0;
+  let flexibleItemCounter = 0;
   for (const item of items) {
     if (rowStartItems.includes(item)) {
       if (rowIndex >= 0) {
-        rowHeights[rowIndex] = [
-          rowHeightBuilder.buildRowHeightForWidth(layoutWidth),
-          rowHeightBuilder.getUnscaledRowHeight(),
-        ];
+        rowContexts[rowIndex] = {
+          unscaledRowHeight: rowHeightBuilder.getUnscaledRowHeight(),
+          rowHeight: rowHeightBuilder.buildRowHeightForWidth(layoutWidth),
+          unscaledRowWidth: rowWidthBuilder,
+          flexibleItemCount: flexibleItemCounter,
+        };
         rowHeightBuilder.reset();
+        rowWidthBuilder = 0;
+        flexibleItemCounter = 0;
       }
       rowIndex++;
       order = 1;
     }
     rowHeightBuilder.addItem(item.width, item.height, item.flexibleAspectRatio);
+    rowWidthBuilder += item.width;
+    if (item.flexibleAspectRatio) {
+      flexibleItemCounter++;
+    }
 
     const cell: LayoutCellBase<T> = {
       item,
@@ -129,14 +144,16 @@ export function buildLayout<T extends LayoutItem>(items: T[], options: BuildLayo
     cells.push(cell);
     order++;
   }
-  rowHeights[rowIndex] = [
-    rowHeightBuilder.buildRowHeightForWidth(layoutWidth),
-    rowHeightBuilder.getUnscaledRowHeight(),
-  ];
+  rowContexts[rowIndex] = {
+    unscaledRowHeight: rowHeightBuilder.getUnscaledRowHeight(),
+    rowHeight: rowHeightBuilder.buildRowHeightForWidth(layoutWidth),
+    unscaledRowWidth: rowWidthBuilder,
+    flexibleItemCount: flexibleItemCounter,
+  };
 
   const rows: LayoutRow[] = [];
   let rowTopBuilder = 0;
-  for (const [rowHeight] of rowHeights) {
+  for (const { rowHeight } of rowContexts) {
     const row: LayoutRow = { height: rowHeight | 0, top: rowTopBuilder, width: 0, cells: [] };
     row.top = rowTopBuilder;
     rows.push(row);
@@ -146,21 +163,30 @@ export function buildLayout<T extends LayoutItem>(items: T[], options: BuildLayo
   const allCells: LayoutCell[] = [];
   for (const cell of cells) {
     const rowIndex = cell.row - 1;
-    const [rowHeight, unscaledRowHeight] = rowHeights[rowIndex];
+    const { rowHeight, unscaledRowHeight, unscaledRowWidth, flexibleItemCount } = rowContexts[rowIndex];
     const itemWidth = cell.item.width;
     const itemHeight = cell.item.flexibleAspectRatio ? Math.max(cell.item.height, unscaledRowHeight) : cell.item.height;
-    const cellWidth = scaleWidthToTargetHeight(itemWidth, itemHeight, rowHeight);
+    let cellWidth = scaleWidthToTargetHeight(itemWidth, itemHeight, rowHeight);
 
-    if (cell.item.flexibleAspectRatio) {
-      console.log(
-        `itemHeight (${cell.row}, ${cell.order})`,
-        cell.item.height,
-        rowHeight,
-        unscaledRowHeight,
-        itemHeight,
-      );
-      console.log(`itemWIdth (${cell.row}, ${cell.order})`, cell.item.width, cellWidth);
+    // Flexible items can use up any unallocated horizontal space.
+    if (cell.item.flexibleAspectRatio && flexibleItemCount > 0) {
+      const rowWidth = scaleWidthToTargetHeight(unscaledRowWidth, unscaledRowHeight, rowHeight);
+      if (rowWidth < layoutWidth) {
+        const extraRowWidth = layoutWidth - rowWidth;
+        cellWidth += Math.floor(extraRowWidth / flexibleItemCount);
+      }
     }
+
+    // if (cell.item.flexibleAspectRatio) {
+    //   console.log(
+    //     `itemHeight (${cell.row}, ${cell.order})`,
+    //     cell.item.height,
+    //     rowHeight,
+    //     unscaledRowHeight,
+    //     itemHeight,
+    //   );
+    //   console.log(`itemWIdth (${cell.row}, ${cell.order})`, cell.item.width, cellWidth);
+    // }
     cell.height = rowHeight | 0;
     cell.width = cellWidth | 0;
 
@@ -383,7 +409,7 @@ export class RowHeightBuilder {
   rowWidth: number;
   rowHeight: number;
   flexibleRowWidth: number;
-  rowHeightFlexible: boolean;
+  isRowHeightFlexible: boolean;
 
   constructor(gap: number) {
     if (typeof gap !== "number" || isNaN(gap)) {
@@ -395,7 +421,7 @@ export class RowHeightBuilder {
     this.rowWidth = 0;
     this.rowHeight = 0;
     this.flexibleRowWidth = 0;
-    this.rowHeightFlexible = false;
+    this.isRowHeightFlexible = false;
   }
 
   addItem(width: number, height: number, flexibleAspectRatio: boolean | undefined) {
@@ -410,7 +436,7 @@ export class RowHeightBuilder {
       this.rowWidth = width;
       this.rowHeight = height;
       if (flexibleAspectRatio) {
-        this.rowHeightFlexible = true;
+        this.isRowHeightFlexible = true;
       }
     } else if (flexibleAspectRatio && height <= this.rowHeight) {
       this.flexibleRowWidth += width;
@@ -418,9 +444,9 @@ export class RowHeightBuilder {
       if (height < this.rowHeight) {
         this.rowWidth = scaleWidthToTargetHeight(this.rowWidth, this.rowHeight, height);
         this.rowHeight = height;
-      } else if (this.rowHeightFlexible) {
+      } else if (this.isRowHeightFlexible) {
         this.rowHeight = height;
-        this.rowHeightFlexible = false;
+        this.isRowHeightFlexible = false;
       }
       const scaledWidth = scaleWidthToTargetHeight(width, height, this.rowHeight);
       this.rowWidth += scaledWidth;
@@ -435,7 +461,12 @@ export class RowHeightBuilder {
 
     const gap = this.gap;
     let itemCount = this.itemCount;
-    let rowWidth = this.rowWidth + this.flexibleRowWidth;
+    let rowWidth = this.rowWidth;
+    if (this.flexibleRowWidth) {
+      // Include some extra space for the flexible items based on how many items we have,
+      // otherwise they might get very narrow if there are a lot of items in a row.
+      rowWidth += Math.ceil(this.flexibleRowWidth * Math.max(Math.log2(this.itemCount), 1));
+    }
     let rowHeight = this.rowHeight;
     return scaleRowHeightToTargetWidth(rowWidth, rowHeight, itemCount, gap, layoutWidth);
   }
