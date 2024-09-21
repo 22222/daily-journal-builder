@@ -63,6 +63,15 @@ export function ItemBoxButton(props: ItemBoxButtonProps) {
   const { getReferenceProps, getFloatingProps } = useInteractions([click, dismiss, role]);
   const headingId = useId();
 
+  const handleClickEdit = React.useCallback(() => {
+    onClickEdit?.();
+    setMenuOpen(false);
+  }, [onClickEdit]);
+  const handleClickDelete = React.useCallback(() => {
+    onClickDelete?.();
+    setMenuOpen(false);
+  }, [onClickDelete]);
+
   return (
     <React.Fragment>
       <button
@@ -149,7 +158,7 @@ export function ItemBoxButton(props: ItemBoxButtonProps) {
                   </button>
                   <button
                     className="btn btn-secondary"
-                    onClick={onClickEdit}
+                    onClick={handleClickEdit}
                     disabled={!onClickEdit}
                     title="Edit"
                     aria-label="Edit"
@@ -158,7 +167,7 @@ export function ItemBoxButton(props: ItemBoxButtonProps) {
                   </button>
                   <button
                     className="btn btn-danger"
-                    onClick={onClickDelete}
+                    onClick={handleClickDelete}
                     disabled={!onClickDelete}
                     title="Delete"
                     aria-label="Delete"

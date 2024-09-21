@@ -68,100 +68,100 @@ export function LayoutPlugin(): null {
     };
 
     return mergeRegister(
-      // When layout is the last child pressing down/right arrow will insert paragraph
-      // below it to allow adding more content. It's similar what $insertBlockNode
-      // (mainly for decorators), except it'll always be possible to continue adding
-      // new content even if trailing paragraph is accidentally deleted
-      editor.registerCommand(KEY_ARROW_DOWN_COMMAND, () => onEscape(false), COMMAND_PRIORITY_LOW),
-      editor.registerCommand(KEY_ARROW_RIGHT_COMMAND, () => onEscape(false), COMMAND_PRIORITY_LOW),
-      // When layout is the first child pressing up/left arrow will insert paragraph
-      // above it to allow adding more content. It's similar what $insertBlockNode
-      // (mainly for decorators), except it'll always be possible to continue adding
-      // new content even if leading paragraph is accidentally deleted
-      editor.registerCommand(KEY_ARROW_UP_COMMAND, () => onEscape(true), COMMAND_PRIORITY_LOW),
-      editor.registerCommand(KEY_ARROW_LEFT_COMMAND, () => onEscape(true), COMMAND_PRIORITY_LOW),
-      editor.registerCommand(
-        INSERT_LAYOUT_COMMAND,
-        (template) => {
-          editor.update(() => {
-            const container = $createLayoutContainerNode(template);
-            const itemsCount = getItemsCountFromTemplate(template);
+      // // When layout is the last child pressing down/right arrow will insert paragraph
+      // // below it to allow adding more content. It's similar what $insertBlockNode
+      // // (mainly for decorators), except it'll always be possible to continue adding
+      // // new content even if trailing paragraph is accidentally deleted
+      // editor.registerCommand(KEY_ARROW_DOWN_COMMAND, () => onEscape(false), COMMAND_PRIORITY_LOW),
+      // editor.registerCommand(KEY_ARROW_RIGHT_COMMAND, () => onEscape(false), COMMAND_PRIORITY_LOW),
+      // // When layout is the first child pressing up/left arrow will insert paragraph
+      // // above it to allow adding more content. It's similar what $insertBlockNode
+      // // (mainly for decorators), except it'll always be possible to continue adding
+      // // new content even if leading paragraph is accidentally deleted
+      // editor.registerCommand(KEY_ARROW_UP_COMMAND, () => onEscape(true), COMMAND_PRIORITY_LOW),
+      // editor.registerCommand(KEY_ARROW_LEFT_COMMAND, () => onEscape(true), COMMAND_PRIORITY_LOW),
+      // editor.registerCommand(
+      //   INSERT_LAYOUT_COMMAND,
+      //   (template) => {
+      //     editor.update(() => {
+      //       const container = $createLayoutContainerNode(template);
+      //       const itemsCount = getItemsCountFromTemplate(template);
 
-            for (let i = 0; i < itemsCount; i++) {
-              container.append($createLayoutItemNode().append($createParagraphNode()));
-            }
+      //       for (let i = 0; i < itemsCount; i++) {
+      //         container.append($createLayoutItemNode().append($createParagraphNode()));
+      //       }
 
-            $insertNodeToNearestRoot(container);
-            container.selectStart();
-          });
+      //       $insertNodeToNearestRoot(container);
+      //       container.selectStart();
+      //     });
 
-          return true;
-        },
-        COMMAND_PRIORITY_EDITOR
-      ),
-      editor.registerCommand(
-        UPDATE_LAYOUT_COMMAND,
-        ({ template, nodeKey }) => {
-          editor.update(() => {
-            const container = $getNodeByKey<LexicalNode>(nodeKey);
+      //     return true;
+      //   },
+      //   COMMAND_PRIORITY_EDITOR
+      // ),
+      // editor.registerCommand(
+      //   UPDATE_LAYOUT_COMMAND,
+      //   ({ template, nodeKey }) => {
+      //     editor.update(() => {
+      //       const container = $getNodeByKey<LexicalNode>(nodeKey);
 
-            if (!$isLayoutContainerNode(container)) {
-              return;
-            }
+      //       if (!$isLayoutContainerNode(container)) {
+      //         return;
+      //       }
 
-            const itemsCount = getItemsCountFromTemplate(template);
-            const prevItemsCount = getItemsCountFromTemplate(container.getTemplateColumns());
+      //       const itemsCount = getItemsCountFromTemplate(template);
+      //       const prevItemsCount = getItemsCountFromTemplate(container.getTemplateColumns());
 
-            // Add or remove extra columns if new template does not match existing one
-            if (itemsCount > prevItemsCount) {
-              for (let i = prevItemsCount; i < itemsCount; i++) {
-                container.append($createLayoutItemNode().append($createParagraphNode()));
-              }
-            } else if (itemsCount < prevItemsCount) {
-              for (let i = prevItemsCount - 1; i >= itemsCount; i--) {
-                const layoutItem = container.getChildAtIndex<LexicalNode>(i);
+      //       // Add or remove extra columns if new template does not match existing one
+      //       if (itemsCount > prevItemsCount) {
+      //         for (let i = prevItemsCount; i < itemsCount; i++) {
+      //           container.append($createLayoutItemNode().append($createParagraphNode()));
+      //         }
+      //       } else if (itemsCount < prevItemsCount) {
+      //         for (let i = prevItemsCount - 1; i >= itemsCount; i--) {
+      //           const layoutItem = container.getChildAtIndex<LexicalNode>(i);
 
-                if ($isLayoutItemNode(layoutItem)) {
-                  layoutItem.remove();
-                }
-              }
-            }
+      //           if ($isLayoutItemNode(layoutItem)) {
+      //             layoutItem.remove();
+      //           }
+      //         }
+      //       }
 
-            container.setTemplateColumns(template);
-          });
+      //       container.setTemplateColumns(template);
+      //     });
 
-          return true;
-        },
-        COMMAND_PRIORITY_EDITOR
-      ),
-      // Structure enforcing transformers for each node type. In case nesting structure is not
-      // "Container > Item" it'll unwrap nodes and convert it back
-      // to regular content.
-      editor.registerNodeTransform(LayoutItemNode, (node) => {
-        const parent = node.getParent<ElementNode>();
-        if (!$isLayoutContainerNode(parent)) {
-          const children = node.getChildren<LexicalNode>();
-          for (const child of children) {
-            node.insertBefore(child);
-          }
-          node.remove();
-        }
-      }),
-      editor.registerNodeTransform(LayoutContainerNode, (node) => {
-        const children = node.getChildren<LexicalNode>();
-        if (!children.every($isLayoutItemNode)) {
-          for (const child of children) {
-            node.insertBefore(child);
-          }
-          node.remove();
-        }
-      })
+      //     return true;
+      //   },
+      //   COMMAND_PRIORITY_EDITOR
+      // ),
+      // // Structure enforcing transformers for each node type. In case nesting structure is not
+      // // "Container > Item" it'll unwrap nodes and convert it back
+      // // to regular content.
+      // editor.registerNodeTransform(LayoutItemNode, (node) => {
+      //   const parent = node.getParent<ElementNode>();
+      //   if (!$isLayoutContainerNode(parent)) {
+      //     const children = node.getChildren<LexicalNode>();
+      //     for (const child of children) {
+      //       node.insertBefore(child);
+      //     }
+      //     node.remove();
+      //   }
+      // }),
+      // editor.registerNodeTransform(LayoutContainerNode, (node) => {
+      //   const children = node.getChildren<LexicalNode>();
+      //   if (!children.every($isLayoutItemNode)) {
+      //     for (const child of children) {
+      //       node.insertBefore(child);
+      //     }
+      //     node.remove();
+      //   }
+      // })
     );
   }, [editor]);
 
   return null;
 }
 
-function getItemsCountFromTemplate(template: string): number {
-  return template.trim().split(/\s+/).length;
-}
+// function getItemsCountFromTemplate(template: string): number {
+//   return template.trim().split(/\s+/).length;
+// }

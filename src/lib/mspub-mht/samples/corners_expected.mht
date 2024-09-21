@@ -1,0 +1,88 @@
+MIME-Version: 1.0
+Content-Type: multipart/related; boundary="----=_NextPart_0QFWODX9.0LG213QQ"
+
+This document is a Single File Web Page, also known as a Web Archive file.  If you are seeing this message, your browser or editor doesn't support Web Archive files.  Please download a browser that supports Web Archive, such as Windows� Internet Explorer�.
+
+------=_NextPart_0QFWODX9.0LG213QQ
+Content-Location: file:///C:/JJXH5V5P/main.htm
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/html; charset="windows-1252"
+
+<html xmlns:v=3D"urn:schemas-microsoft-com:vml"
+xmlns:o=3D"urn:schemas-microsoft-com:office:office"
+xmlns:b=3D"urn:schemas-microsoft-com:office:publisher"
+xmlns=3D"http://www.w3.org/TR/REC-html40">
+
+<head>
+<meta http-equiv=3DContent-Type content=3D"text/html; charset=3Dwindows-125=
+2">
+<meta name=3DProgId content=3DPublisher.Document>
+<meta name=3DGenerator content=3D"Microsoft Publisher 15">
+<link rel=3DFile-List href=3D"main_files/filelist.xml">
+<xml>
+ <o:DocumentProperties>
+  <o:Version>16.00</o:Version>
+ </o:DocumentProperties>
+</xml>
+</head>
+
+<body bgcolor=3Dwhite>
+
+<div>
+
+<v:shapetype id=3D"_x0000_t202" path=3D"m,l,21600r21600,l21600,xe"></v:shap=
+etype>
+
+<v:shape id=3D"_x0000_s1025" type=3D"#_x0000_t202" style=3D'position:absolu=
+te;left:36pt;top:35.02pt;width:1in;height:1in;z-index:1'
+ filled=3D"f" stroked=3D"f">
+</v:shape>
+<div v:shape=3D"_x0000_s1025">
+  <p class=3DMsoNormal style=3D''><span style=3D'font-size:10pt;line-height=
+:119%;font-family:Calibri;color:#0070C0'>NW</span></p>
+</div>
+
+<v:shape id=3D"_x0000_s1026" type=3D"#_x0000_t202" style=3D'position:absolu=
+te;left:7in;top:.51in;width:1in;height:1in;z-index:2'
+ filled=3D"f" stroked=3D"f">
+</v:shape>
+<div v:shape=3D"_x0000_s1026">
+  <p class=3DMsoNormal style=3D''><span style=3D'font-size:10pt;line-height=
+:119%;font-family:Calibri'>NE</span></p>
+</div>
+
+<v:shape id=3D"_x0000_s1027" type=3D"#_x0000_t202" style=3D'position:absolu=
+te;left:.5in;top:10in;width:1in;height:.5in;z-index:3'
+ filled=3D"t" fillcolor=3D"black [1]" stroked=3D"f">
+</v:shape>
+<div v:shape=3D"_x0000_s1027">
+  <p class=3DMsoNormal style=3D''><span style=3D'font-size:10pt;line-height=
+:119%;font-family:Calibri;color:white'>SW</span></p>
+</div>
+
+<v:shape id=3D"_x0000_s1028" type=3D"#_x0000_t202" style=3D'position:absolu=
+te;left:7.5in;top:9.5in;width:.5in;height:1in;z-index:4'
+ filled=3D"f" stroked=3D"f">
+</v:shape>
+<div v:shape=3D"_x0000_s1028">
+  <p class=3DMsoNormal style=3D''><span style=3D'font-size:10pt;line-height=
+:119%;font-family:Calibri'>SE</span></p>
+</div>
+
+</div>
+
+</body>
+
+</html>
+
+
+------=_NextPart_0QFWODX9.0LG213QQ
+Content-Location: file:///C:/JJXH5V5P/main_files/filelist.xml
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/xml; charset="utf-8"
+
+<xml xmlns:o=3D"urn:schemas-microsoft-com:office:office">
+ <o:MainFile HRef=3D"../main.htm"/>
+ <o:File HRef=3D"filelist.xml"/>
+</xml>
+------=_NextPart_0QFWODX9.0LG213QQ--

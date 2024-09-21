@@ -8,13 +8,14 @@ import { DropdownColorPicker } from "../ui/DropdownColorPicker";
 import { FontFamilyDropDown } from "./FontFamilyDropDown";
 import { FontSizeInput } from "./FontSizeInput";
 import { WidthDropdown } from "./WidthDropdown";
-import type { WidthType } from "./WidthType";
-import { convertLengthValueToWidthType, convertWidthTypeToLengthValue } from "./WidthType";
+import type { SimpleWidthType } from "./WidthType";
+import { convertLengthValueToSimpleWidthType, convertSimpleWidthTypeToLengthValue } from "./WidthType";
 import { BorderStyleDropdown } from "./BorderStyleDropdown";
 import type { BorderStyle } from "./BorderStyleDropdown";
 import { SizeInput } from "./SizeInput";
 import type { Size } from "./Size";
 import { convertSizeToPxOrUndefined, convertLengthValueToSizeOrUndefined } from "./Size";
+import { getRandomBasicColor } from "../ui/basicColors";
 
 export interface TextBoxToolbarProps {
   textBoxStyle: TextBoxStyle;
@@ -33,7 +34,7 @@ const DEFAULT_FONT_FAMILY_OPTIONS: Array<{ value: string; label?: string }> = [
 export function TextBoxToolbar({ textBoxStyle, setTextBoxStyle, pageWidth, fonts }: TextBoxToolbarProps) {
   const pageWidthPx = React.useMemo(() => convertLengthValueToPxOrUndefined(pageWidth), [pageWidth]);
   const widthType = React.useMemo(
-    () => convertLengthValueToWidthType(textBoxStyle.width, pageWidthPx),
+    () => convertLengthValueToSimpleWidthType(textBoxStyle.width, pageWidthPx),
     [textBoxStyle.width, pageWidthPx],
   );
 
@@ -57,8 +58,8 @@ export function TextBoxToolbar({ textBoxStyle, setTextBoxStyle, pageWidth, fonts
     return options;
   }, fonts);
 
-  const handleChangeWidth = (value: WidthType) => {
-    const width = convertWidthTypeToLengthValue(value, pageWidthPx);
+  const handleChangeWidth = (value: SimpleWidthType) => {
+    const width = convertSimpleWidthTypeToLengthValue(value, pageWidthPx);
     if (textBoxStyle.width === width) {
       return;
     }
@@ -136,6 +137,14 @@ export function TextBoxToolbar({ textBoxStyle, setTextBoxStyle, pageWidth, fonts
       return;
     }
     const newStyle: TextBoxStyle = { ...textBoxStyle, borderStyle: valueOrUndefined };
+    if (valueOrUndefined) {
+      if (!newStyle.borderWidth) {
+        newStyle.borderWidth = convertSizeToPxOrUndefined(1);
+      }
+      if (!newStyle.borderColor) {
+        newStyle.borderColor = getRandomBasicColor();
+      }
+    }
     setTextBoxStyle(newStyle);
   };
   const handleChangeBorderRadius = (value: Size | undefined) => {
@@ -151,10 +160,19 @@ export function TextBoxToolbar({ textBoxStyle, setTextBoxStyle, pageWidth, fonts
     if (textBoxStyle.borderWidth === valuePx) {
       return;
     }
+
     const newStyle: TextBoxStyle = { ...textBoxStyle, borderWidth: valuePx };
+    if (valuePx) {
+      if (!newStyle.borderStyle) {
+        newStyle.borderStyle = "solid";
+      }
+      if (!newStyle.borderColor) {
+        newStyle.borderColor = getRandomBasicColor();
+      }
+    }
     setTextBoxStyle(newStyle);
   };
-  const handleChangeBorderColor = (value: string) => {
+  const handleChangeBorderColor = (value: string | undefined) => {
     if (textBoxStyle.borderColor === value) {
       return;
     }
@@ -163,76 +181,99 @@ export function TextBoxToolbar({ textBoxStyle, setTextBoxStyle, pageWidth, fonts
   };
 
   return (
-    <div className="btn-toolbar gap-1">
-      <div className="btn-group">
-        <WidthDropdown value={widthType} onChange={handleChangeWidth} />
-      </div>
-      <div className="btn-group">
-        <FontFamilyDropDown
-          options={fontFamilyOptions}
-          value={textBoxStyle.fontFamily ?? ""}
-          onClick={handleChangeFontFamily}
-        />
-      </div>
-      <div className="btn-group">
-        <FontSizeInput value={textBoxStyle.fontSize} onChange={handleChangeFontSize} />
-      </div>
-      <div className="btn-group">
-        <div className="btn-group">
-          <DropdownColorPicker
-            buttonAriaLabel="Text color"
-            buttonIcon={<IconFontColor />}
-            color={textBoxStyle.color ?? ""}
-            onChange={handleChangeFontColor}
-            title="Text color"
-          />
+    <div className="text-box-toolbar btn-toolbar gap-1">
+      <fieldset>
+        <legend>Box</legend>
+        <div className="btn-toolbar gap-1">
+          <div className="btn-group">
+            <WidthDropdown value={widthType} onChange={handleChangeWidth} />
+          </div>
+          <div className="btn-group">
+            <DropdownColorPicker
+              buttonAriaLabel="Background color"
+              buttonIcon={<IconBgColor />}
+              color={textBoxStyle.backgroundColor ?? ""}
+              colorType="background"
+              onChange={handleChangeBackgroundColor}
+              title="Background color"
+            />
+          </div>
+          <div className="btn-group">
+            <SizeInput
+              label="Margin"
+              value={convertLengthValueToSizeOrUndefined(
+                textBoxStyle.paddingLeft ??
+                  textBoxStyle.paddingTop ??
+                  textBoxStyle.paddingRight ??
+                  textBoxStyle.paddingBottom,
+              )}
+              onChange={handleChangeMargin}
+            />
+          </div>
         </div>
-        <div className="btn-group">
-          <DropdownColorPicker
-            buttonAriaLabel="Background color"
-            buttonIcon={<IconBgColor />}
-            color={textBoxStyle.backgroundColor ?? ""}
-            colorType="background"
-            onChange={handleChangeBackgroundColor}
-            title="Background color"
-          />
+      </fieldset>
+
+      <fieldset>
+        <legend>Border</legend>
+        <div className="btn-toolbar gap-1">
+          <div className="btn-group">
+            <BorderStyleDropdown value={textBoxStyle.borderStyle} onChange={handleChangeBorderStyle} />
+          </div>
+          <div className="btn-group">
+            <SizeInput
+              label="Width"
+              hideLabel={true}
+              value={convertLengthValueToSizeOrUndefined(textBoxStyle.borderWidth)}
+              onChange={handleChangeBorderWidth}
+              disabled={!textBoxStyle.borderStyle}
+            />
+          </div>
+          <div className="btn-group">
+            <DropdownColorPicker
+              buttonAriaLabel="Border color"
+              buttonIcon={<IconBorderColor />}
+              color={textBoxStyle.borderColor ?? ""}
+              colorType="text"
+              onChange={handleChangeBorderColor}
+              title="Border color"
+              disabled={!textBoxStyle.borderStyle}
+            />
+          </div>
+          <div className="btn-group">
+            <SizeInput
+              label="Corners"
+              value={convertLengthValueToSizeOrUndefined(textBoxStyle.borderRadius)}
+              onChange={handleChangeBorderRadius}
+              disabled={!textBoxStyle.borderStyle}
+            />
+          </div>
         </div>
-      </div>
-      <div className="btn-group">
-        <SizeInput
-          label="Margin"
-          value={convertLengthValueToSizeOrUndefined(
-            textBoxStyle.paddingLeft ??
-              textBoxStyle.paddingTop ??
-              textBoxStyle.paddingRight ??
-              textBoxStyle.paddingBottom,
-          )}
-          onChange={handleChangeMargin}
-        />
-      </div>
-      <div className="btn-group">
-        <BorderStyleDropdown value={textBoxStyle.borderStyle} onChange={handleChangeBorderStyle} />
-        <SizeInput
-          label="Width"
-          value={convertLengthValueToSizeOrUndefined(textBoxStyle.borderWidth)}
-          onChange={handleChangeBorderWidth}
-          disabled={!textBoxStyle.borderStyle}
-        />
-        <DropdownColorPicker
-          buttonAriaLabel="Border color"
-          buttonIcon={<IconBorderColor />}
-          color={textBoxStyle.borderColor ?? ""}
-          colorType="text"
-          onChange={handleChangeBorderColor}
-          title="Border color"
-        />
-        <SizeInput
-          label="Rounded"
-          value={convertLengthValueToSizeOrUndefined(textBoxStyle.borderRadius)}
-          onChange={handleChangeBorderRadius}
-          disabled={!textBoxStyle.borderStyle}
-        />
-      </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Text</legend>
+        <div className="btn-toolbar gap-1">
+          <div className="btn-group">
+            <FontFamilyDropDown
+              options={fontFamilyOptions}
+              value={textBoxStyle.fontFamily ?? ""}
+              onClick={handleChangeFontFamily}
+            />
+          </div>
+          <div className="btn-group">
+            <FontSizeInput value={textBoxStyle.fontSize} onChange={handleChangeFontSize} />
+          </div>
+          <div className="btn-group">
+            <DropdownColorPicker
+              buttonAriaLabel="Text color"
+              buttonIcon={<IconFontColor />}
+              color={textBoxStyle.color ?? ""}
+              onChange={handleChangeFontColor}
+              title="Text color"
+            />
+          </div>
+        </div>
+      </fieldset>
     </div>
   );
 }

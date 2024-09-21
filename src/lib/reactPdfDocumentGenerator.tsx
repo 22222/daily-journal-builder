@@ -1,27 +1,36 @@
-import React from "react";
 import { Document, Font, Image, Page, Text, View, pdf } from "@react-pdf/renderer";
 import type { Style } from "@react-pdf/types";
+import React from "react";
 
 import { CssOrPdfProperties, convertToCssOrPdfProperties } from "./CssOrPdfProperties";
 import type { DailyJournalDocument, DailyJournalDocumentContext } from "./DailyJournalDocument";
-import type { RichTextNode, RichTextElementNode, TextBoxData } from "./TextBoxData";
 import type { LengthValue } from "./LengthValue";
 import {
-  convertLengthValueToInchesString,
   convertLengthValueToInchesStringOrUndefined,
   convertLengthValueToPx,
   convertLengthValueToPxOrUndefined,
 } from "./LengthValue";
+import type { RichTextElementNode, RichTextNode, TextBoxData } from "./TextBoxData";
 import { FontFace } from "./fonts/FontFace";
 
-if (!("__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED" in React)) (React as any).__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = {};
+if (!("__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED" in React))
+  (React as any).__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = {};
 
 export function generatePdfBlob(document: DailyJournalDocument, context: DailyJournalDocumentContext): Promise<Blob> {
-  console.log("document", document);
+  //console.log("document", document);
   // Fonts appear to be a global resource?
   // So we'll clear out any previously registered fonts before registering the ones for this document.
   Font.clear();
   const groupings = objectGroupBy(context.fonts, (font) => font.fontFamily);
+
+  // The default fallback font for react-pdf is Helvetica, so we need to make sure that we have a font registered with that name.
+  if (!groupings["Helvetica"]) {
+    const defaultFontFamilyName = Object.keys(groupings)[0];
+    if (defaultFontFamilyName) {
+      groupings["Helvetica"] = groupings[defaultFontFamilyName];
+    }
+  }
+
   for (const fontFamily of Object.keys(groupings)) {
     const grouping = groupings[fontFamily];
     if (!grouping || grouping.length === 0) {
@@ -128,7 +137,7 @@ function DailyJournalPdfDocument({
         size="LETTER"
         //size={document.pageSize}
         orientation="portrait"
-        style={document.style}
+        style={document.style as Style}
       >
         <View>
           {document.itemBoxes.map((itemBox) => {
@@ -137,7 +146,7 @@ function DailyJournalPdfDocument({
               if (!imageData) {
                 return null;
               }
-              return <Image key={itemBox.key} src={imageData} style={itemBox.style} />;
+              return <Image key={itemBox.key} src={imageData} style={itemBox.style as Style} />;
             }
             if (itemBox.item.type === "textBox") {
               return (
@@ -179,7 +188,6 @@ function TextBoxDataView({
   };
 
   const registeredFontMap = React.useMemo(() => {
-    console.log("fonts", context.fonts);
     const map = mapGroupBy(context.fonts, (font) => font.fontFamily);
     return map;
   }, [context.fonts]);
@@ -222,21 +230,22 @@ function TextBoxDataView({
     parent: undefined,
     parentWidth,
     parentHeight,
-    fontFamily: style?.fontFamily,
+    fontFamily: Array.isArray(style?.fontFamily) ? style.fontFamily[0] : style?.fontFamily,
     fontWeight: style?.fontWeight,
     fontStyle: style?.fontStyle,
   };
 
-  const result = (
-    <View style={style}>
-      {data.richText ? (
-        <RichTextNodeView node={data.richText} context={richTextNodeContext} />
-      ) : (
-        <Text>{data.text ?? ""}</Text>
-      )}
-    </View>
-  );
-  return result;
+  console.log("TextBoxDataView", style.zIndex, style, data);
+
+  let textElement: React.ReactNode;
+  if (data.richText) {
+    textElement = <RichTextNodeView node={data.richText} context={richTextNodeContext} />;
+  } else if (data.text) {
+    textElement = <Text style={{ fontFamily: richTextNodeContext.fontFamily }}>{data.text}</Text>;
+  } else {
+    textElement = null;
+  }
+  return <View style={style}>{textElement}</View>;
 }
 
 interface RichTextNodeContext {
@@ -249,92 +258,107 @@ interface RichTextNodeContext {
   fontStyle: CssOrPdfProperties["fontStyle"] | Style["fontStyle"] | undefined;
 }
 
-const allowFlexbox = true;
+//const allowFlexbox = true;
 function RichTextNodeView({ node, context }: { node: RichTextNode; context: RichTextNodeContext }) {
   if (node.type === "text") {
-    return <Text style={convertToCssOrPdfProperties(node.style)}>{node.text}</Text>;
+    return <Text style={convertToCssOrPdfProperties(node.style) as Style}>{node.text}</Text>;
   }
 
   let width = context.parentWidth;
 
   let style = convertToCssOrPdfProperties(node.style);
   let pdfStyle: Style | undefined;
-  if (node.type === "layoutContainer") {
-    if (allowFlexbox) {
+  // if (node.type === "layoutContainer") {
+  //   if (allowFlexbox) {
+  //     pdfStyle = {
+  //       ...style,
+  //       display: "flex",
+  //       flexDirection: "row",
+  //       flexWrap: "nowrap",
+  //       justifyContent: "space-between",
+  //       alignItems: "stretch",
+  //       // borderWidth: convertLengthValueToInchesStringOrUndefined(1),
+  //       // borderColor: "pink",
+  //       // borderStyle: "solid",
+  //     };
+  //   } else {
+  //     style = {
+  //       ...style,
+  //       position: "relative",
+  //     };
+  //   }
+  // } else if (node.type === "layoutItem") {
+  //   if (allowFlexbox) {
+  //     //style = { ...style, flexGrow: 1 };
+  //     let align: (Style["alignItems"] & Style["alignSelf"] & Style["justifyContent"]) | undefined;
+  //     if (style?.textAlign) {
+  //       if (style.textAlign === "left") {
+  //         align = "flex-start";
+  //       } else if (style.textAlign === "right") {
+  //         align = "flex-end";
+  //       } else {
+  //         align = style.textAlign;
+  //       }
+  //     }
+  //     pdfStyle = {
+  //       ...style,
+  //       flexGrow: 1,
+  //       display: "flex",
+  //       flexDirection: "row",
+  //       alignItems: "center",
+  //       justifyContent: align,
+  //       alignSelf: align,
+  //       //height: convertLengthValueToInchesStringOrUndefined(parentHeight),
+  //       // borderWidth: convertLengthValueToInchesStringOrUndefined(1),
+  //       // borderColor: "red",
+  //       // borderStyle: "solid",
+  //     };
+  //     width = undefined;
+  //   } else
+  //   {
+  //     const rowItemCount = Math.max(context.parent?.children.length ?? 0, 1);
+  //     const rowItemIndex = Math.max(context.parent?.children?.indexOf(node) ?? -1, 0);
+  //     const itemWidth = (convertLengthValueToPxOrUndefined(context.parentWidth) ?? 0) / rowItemCount;
+  //     const left = itemWidth * rowItemIndex;
+  //     let justifyContent: Style["justifyContent"] | undefined;
+  //     if (style?.textAlign === "left") {
+  //       justifyContent = "flex-start";
+  //     } else if (style?.textAlign === "right") {
+  //       justifyContent = "flex-end";
+  //     } else {
+  //       justifyContent = style?.textAlign;
+  //     }
+  //     pdfStyle = {
+  //       ...style,
+  //       position: "absolute",
+  //       left: convertLengthValueToInchesStringOrUndefined(left),
+  //       top: "0",
+  //       width: convertLengthValueToInchesStringOrUndefined(itemWidth),
+  //       height: convertLengthValueToInchesStringOrUndefined(context.parentHeight),
+  //       display: "flex",
+  //       alignItems: "center",
+  //       justifyContent,
+  //     };
+  //     width = itemWidth;
+  //   }
+  // } else
+  if (node.type === "root") {
+    style = { ...style };
+    if (style.alignContent === "center" && style.textAlign === "center") {
       pdfStyle = {
         ...style,
         display: "flex",
-        flexDirection: "row",
-        flexWrap: "nowrap",
-        justifyContent: "space-between",
-        alignItems: "stretch",
-        // borderWidth: convertLengthValueToInchesStringOrUndefined(1),
-        // borderColor: "pink",
-        // borderStyle: "solid",
-      };
-    } else {
-      style = {
-        ...style,
-        position: "relative",
-      };
-    }
-  } else if (node.type === "layoutItem") {
-    if (allowFlexbox) {
-      //style = { ...style, flexGrow: 1 };
-      let align: (Style["alignItems"] & Style["alignSelf"] & Style["justifyContent"]) | undefined;
-      if (style?.textAlign) {
-        if (style.textAlign === "left") {
-          align = "flex-start";
-        } else if (style.textAlign === "right") {
-          align = "flex-end";
-        } else {
-          align = style.textAlign;
-        }
-      }
-      pdfStyle = {
-        ...style,
-        flexGrow: 1,
-        display: "flex",
-        flexDirection: "row",
         alignItems: "center",
-        justifyContent: align,
-        alignSelf: align,
-        //height: convertLengthValueToInchesStringOrUndefined(parentHeight),
-        // borderWidth: convertLengthValueToInchesStringOrUndefined(1),
-        // borderColor: "red",
-        // borderStyle: "solid",
+        justifyContent: "center",
       };
-      width = undefined;
-    } else {
-      const rowItemCount = Math.max(context.parent?.children.length ?? 0, 1);
-      const rowItemIndex = Math.max(context.parent?.children?.indexOf(node) ?? -1, 0);
-      const itemWidth = (convertLengthValueToPxOrUndefined(context.parentWidth) ?? 0) / rowItemCount;
-      const left = itemWidth * rowItemIndex;
-      let justifyContent: Style["justifyContent"] | undefined;
-      if (style?.textAlign === "left") {
-        justifyContent = "flex-start";
-      } else if (style?.textAlign === "right") {
-        justifyContent = "flex-end";
-      } else {
-        justifyContent = style?.textAlign;
-      }
-      pdfStyle = {
-        ...style,
-        position: "absolute",
-        left: convertLengthValueToInchesStringOrUndefined(left),
-        top: "0",
-        width: convertLengthValueToInchesStringOrUndefined(itemWidth),
-        height: convertLengthValueToInchesStringOrUndefined(context.parentHeight),
-        display: "flex",
-        alignItems: "center",
-        justifyContent,
-      };
-      width = itemWidth;
+      //console.log("pdfStyle", pdfStyle);
     }
   } else if (node.type === "paragraph") {
     style = { ...style };
+    //style = { ...style, borderColor: "black", borderWidth: 1, borderStyle: "solid" } as any;
   } else {
-    style = { ...style };
+    throw new Error(`Unknown node type: ${node.type}`);
+    //style = { ...style };
   }
 
   const childContext: RichTextNodeContext = {
@@ -343,7 +367,7 @@ function RichTextNodeView({ node, context }: { node: RichTextNode; context: Rich
     parentWidth: width,
     fontFamily: style?.fontFamily ?? context.fontFamily,
     fontWeight: style?.fontWeight ?? context.fontWeight,
-    fontStyle: style?.textDecoration ?? context.fontStyle,
+    fontStyle: style?.fontStyle ?? context.fontStyle,
   };
 
   // // Manually choose the correct font face name if the style is bold or italic.
@@ -373,7 +397,7 @@ function RichTextNodeView({ node, context }: { node: RichTextNode; context: Rich
   // }
 
   return (
-    <View style={pdfStyle ?? style}>
+    <View style={pdfStyle ?? (style as Style)}>
       {node.children.map((childNode, i) => (
         <RichTextNodeView key={i} node={childNode} context={childContext} />
       ))}

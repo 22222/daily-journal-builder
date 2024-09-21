@@ -37,6 +37,7 @@ export interface TextBoxData {
 export interface TextBoxStyle
   extends Pick<
     React.CSSProperties,
+    | "alignContent"
     | "backgroundColor"
     | "borderColor"
     | "borderRadius"
@@ -52,14 +53,17 @@ export interface TextBoxStyle
     | "paddingTop"
     | "width"
   > {
+  alignContent?: "center";
   borderStyle?: "dashed" | "dotted" | "solid";
   width?: number;
   minHeight?: number;
   fontSize?: `${number}pt`;
 }
 
-export interface RichTextElementNodeStyle extends Pick<React.CSSProperties, "textAlign"> {
+export interface RichTextElementNodeStyle extends Pick<React.CSSProperties, "textAlign" | "alignContent"> {
   textAlign?: "left" | "right" | "center";
+  alignContent?: "center";
+  // marginBottom?: 0;
 }
 
 export interface RichTextTextNodeStyle
@@ -125,7 +129,7 @@ export function convertLexicalEditorStateToTextBoxData(lexicalEditorState: Seria
 }
 
 export function convertLexicalRootNodeToRichTextData(lexicalRootNode: SerializedRootNode): TextBoxData["richText"] {
-  console.log("lexicalRootNode", lexicalRootNode);
+  //console.log("lexicalRootNode", lexicalRootNode);
   const richTextNode = convertLexicalNodeToRichTextNode(lexicalRootNode);
   return richTextNode as RichTextRootNode;
 }
@@ -224,8 +228,8 @@ export function convertTextBoxDataToLexicalInitialEditorState(
 
   if (lexicalRootNode) {
     const initialEditorState = JSON.stringify({ root: lexicalRootNode });
-    console.log("textBoxData", textBoxData);
-    console.log("initialEditorState", initialEditorState);
+    // console.log("textBoxData", textBoxData);
+    // console.log("initialEditorState", initialEditorState);
     return initialEditorState;
   }
   return null;
@@ -301,7 +305,16 @@ function isRootNode(node: SerializedLexicalNode): node is SerializedRootNode {
 }
 
 function createParagraphNode(): SerializedParagraphNode {
-  return { type: "paragraph", version: 1, format: "", textStyle: "", indent: 0, direction: null, textFormat: 0, children: [] };
+  return {
+    type: "paragraph",
+    version: 1,
+    format: "",
+    textStyle: "",
+    indent: 0,
+    direction: null,
+    textFormat: 0,
+    children: [],
+  };
 }
 
 function isParagraphNode(node: SerializedLexicalNode): node is SerializedParagraphNode {
@@ -397,7 +410,8 @@ export function calculateTextBoxDataHeightPx(data: TextBoxData): number {
   const el = createTextBoxDataElement(data);
   el.style.display = "absolute";
   el.style.top = "0px";
-  el.style.left = "calc(100vw * 2)";
+  el.style.left = "0px";
+  //el.style.left = "calc(100vw * 2)";
   el.style.visibility = "hidden";
   el.style.minHeight = "";
   el.style.height = "";
@@ -406,11 +420,55 @@ export function calculateTextBoxDataHeightPx(data: TextBoxData): number {
   try {
     document.body.append(el);
     height = el.offsetHeight;
-    console.log("createTextBoxDataElement", el, height);
+    //console.log("createTextBoxDataElement", el, height);
   } finally {
     el.remove();
   }
   return height;
+}
+
+export function calculateHeaderTextHeightPx(data: TextBoxData): { height: number; lineHeight?: number } | undefined {
+  const el = createTextBoxDataElement(data);
+  el.style.position = "absolute";
+  el.style.top = "0px";
+  el.style.left = "0px";
+  //el.style.left = "calc(100vw * 2)";
+  el.style.visibility = "hidden";
+  el.style.boxSizing = "border-box";
+
+  // Find the first "p" child element
+  const pElList = el.querySelectorAll("p");
+  if (pElList.length !== 1) {
+    return undefined;
+  }
+  const pEl = pElList[0];
+  // pEl.style.paddingTop = "0";
+  // pEl.style.paddingBottom = "0";
+  // pEl.style.marginTop = "0";
+  // pEl.style.marginBottom = "0";
+
+  // Find the height of the paragraph
+  let height: number | undefined;
+  let lineHeight: number | undefined;
+  try {
+    document.body.append(el);
+    if (pEl.offsetHeight) {
+      height = pEl.offsetHeight;
+    }
+    try {
+      lineHeight = convertLengthValueToPxOrUndefined(getComputedStyle(pEl).lineHeight);
+    } catch (err) {
+      console.log("Error getting lineHeight", err);
+    }
+  } finally {
+    el.remove();
+  }
+
+  if (!height) {
+    return undefined;
+  }
+
+  return { height, lineHeight };
 }
 
 export function calculateTextBoxDataScaledFontSizePtString(
@@ -421,7 +479,8 @@ export function calculateTextBoxDataScaledFontSizePtString(
   const el = createTextBoxDataElement(data);
   el.style.position = "absolute";
   el.style.top = "0px";
-  el.style.left = "calc(100vw * 2)";
+  el.style.left = "0px";
+  //el.style.left = "calc(100vw * 2)";
   el.style.visibility = "hidden";
   el.style.boxSizing = "border-box";
 
@@ -462,13 +521,13 @@ export function calculateTextBoxDataScaledFontSizePtString(
   el.style.fontSize = `${fontSizePt}pt`;
   try {
     document.body.append(el);
-    console.log("fontSizePt", fontSizePt, el, el.clientHeight, el.scrollHeight);
+    //console.log("fontSizePt", fontSizePt, el, el.clientHeight, el.scrollHeight);
     const minFontSizePt = 6;
     while (fontSizePt > minFontSizePt && isOverflow(el)) {
       //fontSizePt = chooseNextFontSize(fontSizePt, minFontSizePt);
       fontSizePt--;
       el.style.fontSize = `${fontSizePt}pt`;
-      console.log("nextFontSizePt", fontSizePt);
+      //console.log("nextFontSizePt", fontSizePt);
     }
     return `${fontSizePt}pt`;
   } finally {

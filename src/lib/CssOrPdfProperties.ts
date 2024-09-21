@@ -3,13 +3,13 @@ import { convertLengthValueToInchesStringOrUndefined, convertLengthValueToPtStri
 import type { RichTextElementNodeStyle, RichTextTextNodeStyle, TextBoxStyle } from "./TextBoxData";
 
 type CssOrPdfPropertyKeys =
+  | "alignContent"
   | "backgroundColor"
   | "borderColor"
   | "borderRadius"
   | "borderStyle"
   | "borderWidth"
   | "color"
-  | "display"
   | "fontFamily"
   | "fontSize"
   | "fontStyle"
@@ -36,23 +36,23 @@ export interface CssOrPdfProperties
   extends Pick<React.CSSProperties, CssOrPdfPropertyKeys>,
     Pick<Partial<CSSStyleDeclaration>, CssOrPdfPropertyKeys>,
     Pick<ReactPdfStyle, CssOrPdfPropertyKeys> {
-  alignItems?: "flex-start" | "flex-end" | "center";
+  alignContent?: "center";
   backgroundColor?: `#${string}`;
   borderColor?: `#${string}`;
   borderRadius?: `${number}in` | "0";
   borderStyle?: "dashed" | "dotted" | "solid";
   borderWidth?: `${number}in` | "0";
   color?: `#${string}`;
-  display?: "flex";
-  flexDirection?: "row";
-  flexGrow?: 0 | 1;
-  flexWrap?: "nowrap";
+  //display?: "flex";
+  //flexDirection?: "row";
+  //flexGrow?: 0 | 1;
+  //flexWrap?: "nowrap";
   fontFamily?: string;
   fontSize?: `${number}pt`;
   fontStyle?: "italic" | "normal";
   fontWeight?: "bold" | "normal";
   height?: `${number}in` | "0";
-  justifyContent?: "space-between" | "flex-start" | "flex-end" | "center";
+  //justifyContent?: "space-between" | "flex-start" | "flex-end" | "center";
   left?: `${number}in` | "0";
   marginBottom?: `${number}in` | "0";
   marginLeft?: `${number}in` | "0";
@@ -69,6 +69,7 @@ export interface CssOrPdfProperties
   textDecoration?: "underline" | "none";
   top?: `${number}in` | "0";
   width?: `${number}in` | "0";
+  zIndex?: number;
 }
 
 export function convertToCssOrPdfProperties(
@@ -86,22 +87,23 @@ export function convertToCssOrPdfProperties(
   }
 
   const result: CssOrPdfProperties = {};
-  if ("alignItems" in style && isAlignItems(style.alignItems)) result.alignItems = style.alignItems;
+  //if ("alignItems" in style && isAlignItems(style.alignItems)) result.alignItems = style.alignItems;
+  if ("alignContent" in style && isAlignContent(style.alignContent)) result.alignContent = style.alignContent;
   if ("backgroundColor" in style) result.backgroundColor = convertColorToHex(style.backgroundColor);
   if ("borderColor" in style) result.borderColor = convertColorToHex(style.borderColor);
   if ("borderRadius" in style) result.borderRadius = convertLengthValueToInchesStringOrUndefined(style.borderRadius);
   if ("borderStyle" in style && isBorderStyle(style.borderStyle)) result.borderStyle = style.borderStyle;
   if ("borderWidth" in style) result.borderWidth = convertLengthValueToInchesStringOrUndefined(style.borderWidth);
   if ("color" in style) result.color = convertColorToHex(style.color);
-  if ("flexDirection" in style && isFlexDirection(style.flexDirection)) result.flexDirection = style.flexDirection;
-  if ("flexGrow" in style && isFlexGrow(style.flexGrow)) result.flexGrow = style.flexGrow;
-  if ("flexWrap" in style && isFlexWrap(style.flexWrap)) result.flexWrap = style.flexWrap;
-  if ("fontFamily" in style) result.fontFamily = style.fontFamily;
+  // if ("flexDirection" in style && isFlexDirection(style.flexDirection)) result.flexDirection = style.flexDirection;
+  // if ("flexGrow" in style && isFlexGrow(style.flexGrow)) result.flexGrow = style.flexGrow;
+  // if ("flexWrap" in style && isFlexWrap(style.flexWrap)) result.flexWrap = style.flexWrap;
+  if ("fontFamily" in style) result.fontFamily = convertToString(style.fontFamily);
   if ("fontSize" in style) result.fontSize = convertLengthValueToPtStringOrUndefined(style.fontSize);
   if ("fontStyle" in style && isFontStyle(style.fontStyle)) result.fontStyle = style.fontStyle;
   if ("fontWeight" in style && isFontWeight(style.fontWeight)) result.fontWeight = style.fontWeight;
   if ("height" in style) result.height = convertLengthValueToInchesStringOrUndefined(style.height);
-  if ("justifyContent" in style && isJustifyContent(style.justifyContent)) result.justifyContent = style.justifyContent;
+  //if ("justifyContent" in style && isJustifyContent(style.justifyContent)) result.justifyContent = style.justifyContent;
   if ("left" in style) result.left = convertLengthValueToInchesStringOrUndefined(style.left);
   if ("marginBottom" in style) result.marginBottom = convertLengthValueToInchesStringOrUndefined(style.marginBottom);
   if ("marginLeft" in style) result.marginLeft = convertLengthValueToInchesStringOrUndefined(style.marginLeft);
@@ -118,12 +120,17 @@ export function convertToCssOrPdfProperties(
   if ("textDecoration" in style && isTextDecoration(style.textDecoration)) result.textDecoration = style.textDecoration;
   if ("top" in style) result.top = convertLengthValueToInchesStringOrUndefined(style.top);
   if ("width" in style) result.width = convertLengthValueToInchesStringOrUndefined(style.width);
+  if ("zIndex" in style && typeof style.zIndex === "number") result.zIndex = style.zIndex;
 
   return result;
 }
 
 function isAlignItems(value: unknown): value is "flex-start" | "flex-end" | "center" {
   return value === "flex-start" || value === "flex-end" || value === "center";
+}
+
+function isAlignContent(value: unknown): value is "center" {
+  return value === "center";
 }
 
 function isBorderStyle(value: unknown): value is "dashed" | "dotted" | "solid" {
@@ -188,6 +195,16 @@ function convertColorToHex(value: unknown): `#${string}` | undefined {
   }
   if (colorName === "white") {
     return "#ffffff";
+  }
+  return undefined;
+}
+
+function convertToString(value: string | string[] | undefined): string | undefined {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value[0];
   }
   return undefined;
 }

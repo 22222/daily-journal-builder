@@ -8,9 +8,10 @@ export interface LayoutItem {
   rowSpan?: 1 | 2;
   featured?: boolean;
   flexibleAspectRatio?: boolean;
-  maximizeWidth?: boolean;
-  minHeight?: number;
-  minWidth?: number;
+  //maximizeWidth?: boolean;
+  //minHeight?: number;
+  //minWidth?: number;
+  preferredWidth?: "sm" | "md" | "lg";
 }
 
 export interface Layout<T = LayoutItem> {
@@ -95,6 +96,7 @@ export function buildLayout<T extends LayoutItem>(items: T[], options: BuildLayo
   }
 
   const { layoutWidth, layoutHeight, gap } = options;
+  //console.log("buildLayout options", options, layoutWidth);
   const { graph, sourceNode, targetNode } = buildLayoutGraph(items, options);
   const nodeKeys = dijkstra.bidirectional(graph, sourceNode, targetNode, (_, edgeAttributes) => edgeAttributes.weight);
   if (!nodeKeys) {
@@ -111,18 +113,19 @@ export function buildLayout<T extends LayoutItem>(items: T[], options: BuildLayo
   }> = [];
   let rowIndex = -1;
   let order = 1;
-  const rowHeightBuilder = new RowHeightBuilder(5);
+  const rowHeightBuilder = new RowHeightBuilder(gap);
   let rowWidthBuilder = 0;
   let flexibleItemCounter = 0;
   for (const item of items) {
     if (rowStartItems.includes(item)) {
       if (rowIndex >= 0) {
-        rowContexts[rowIndex] = {
+        const rowContext = {
           unscaledRowHeight: rowHeightBuilder.getUnscaledRowHeight(),
           rowHeight: rowHeightBuilder.buildRowHeightForWidth(layoutWidth),
           unscaledRowWidth: rowWidthBuilder,
           flexibleItemCount: flexibleItemCounter,
         };
+        rowContexts[rowIndex] = rowContext;
         rowHeightBuilder.reset();
         rowWidthBuilder = 0;
         flexibleItemCounter = 0;
@@ -144,12 +147,13 @@ export function buildLayout<T extends LayoutItem>(items: T[], options: BuildLayo
     cells.push(cell);
     order++;
   }
-  rowContexts[rowIndex] = {
+  const lastRowContext = {
     unscaledRowHeight: rowHeightBuilder.getUnscaledRowHeight(),
     rowHeight: rowHeightBuilder.buildRowHeightForWidth(layoutWidth),
     unscaledRowWidth: rowWidthBuilder,
     flexibleItemCount: flexibleItemCounter,
   };
+  rowContexts[rowIndex] = lastRowContext;
 
   const rows: LayoutRow[] = [];
   let rowTopBuilder = 0;
@@ -170,9 +174,11 @@ export function buildLayout<T extends LayoutItem>(items: T[], options: BuildLayo
 
     // Flexible items can use up any unallocated horizontal space.
     if (cell.item.flexibleAspectRatio && flexibleItemCount > 0) {
+      //cellWidth = Math.max(cellWidth, scaleWidthToTargetHeight(itemWidth, cell.item.height, rowHeight));
       const rowWidth = scaleWidthToTargetHeight(unscaledRowWidth, unscaledRowHeight, rowHeight);
       if (rowWidth < layoutWidth) {
         const extraRowWidth = layoutWidth - rowWidth;
+        console.log("extraRowWidth", layoutWidth, rowWidth, flexibleItemCount, cell);
         cellWidth += Math.floor(extraRowWidth / flexibleItemCount);
       }
     }
@@ -206,6 +212,22 @@ export function buildLayout<T extends LayoutItem>(items: T[], options: BuildLayo
   for (const row of rows) {
     if (row.width > gap) {
       row.width -= gap;
+    }
+
+    // Sometimes we stil have extra space in the row?  If that happens, we'll do a second pass to distribute it.
+    // We could probably do a better job of calculating this on the first pass, but this is good enough for now.
+    if (row.width < layoutWidth && row.cells.some((cell) => cell.item.flexibleAspectRatio)) {
+      const extraRowWidth = layoutWidth - row.width;
+      let widthAdjust = 0;
+      const flexibleItemCells = row.cells.filter((cell) => cell.item.flexibleAspectRatio);
+      const extraRowWidthPerCell = Math.floor(extraRowWidth / flexibleItemCells.length);
+      for (const cell of row.cells) {
+        cell.left += widthAdjust;
+        if (cell.item.flexibleAspectRatio) {
+          cell.width += extraRowWidthPerCell;
+          widthAdjust += extraRowWidthPerCell;
+        }
+      }
     }
   }
 
@@ -284,6 +306,12 @@ function findLayoutItem(items: LayoutItem[], nodeKey: string): LayoutItem | unde
   return items.find((item) => item.key === key);
 }
 
+/**
+ * Builds a directed, acyclic graph for the layout.
+ * Each node represents the photo or textbox that to break on, and each edge
+ *
+ * This is loosely based on the algorithm described at https://medium.com/google-design/google-photos-45b714dfbed1.
+ */
 export function buildLayoutGraph(
   items: LayoutItem[],
   options: BuildLayoutOptions,
@@ -314,8 +342,8 @@ export function buildLayoutGraph(
     return node;
   };
 
-  const sourceNode = getOrCreateLayoutNode(items[0], layoutHeight - gap);
-  const targetNode: LayoutNode = {
+  const startNode = getOrCreateLayoutNode(items[0], layoutHeight - gap);
+  const endNode: LayoutNode = {
     item: undefined,
     i: -1,
     remainingLayoutHeight: 0,
@@ -323,7 +351,7 @@ export function buildLayoutGraph(
       return "end";
     },
   };
-  graph.addNode(targetNode);
+  graph.addNode(endNode);
 
   const rowHeightBuilder = new RowHeightBuilder(gap);
   while (unprocessedNodeQueue.length > 0) {
@@ -334,14 +362,16 @@ export function buildLayoutGraph(
     rowHeightBuilder.addItem(fromItem.width, fromItem.height, fromItem.flexibleAspectRatio);
 
     const featuredItems: LayoutItem[] = [];
-    const flexibleAspectRatioItems: LayoutItem[] = [];
     if (fromItem.featured) {
       featuredItems.push(fromItem);
     }
+    const flexibleAspectRatioItems: LayoutItem[] = [];
     if (fromItem.flexibleAspectRatio) {
       flexibleAspectRatioItems.push(fromItem);
     }
 
+    let lgItemCount = 0;
+    let mdItemCount = 0;
     for (let i = fromNode.i + 1; i < items.length; i++) {
       const toItem = items[i];
       const rowHeight = rowHeightBuilder.buildRowHeightForWidth(layoutWidth);
@@ -362,7 +392,6 @@ export function buildLayoutGraph(
       if (flexibleAspectRatioItems.length > 0) {
         for (const flexibleAspectRatioItem of flexibleAspectRatioItems) {
           const preferredWidth = Math.min(flexibleAspectRatioItem.width, layoutWidth);
-
           const itemHeight = Math.max(flexibleAspectRatioItem.height, rowHeightBuilder.getUnscaledRowHeight());
           const scaledItemWidth = scaleWidthToTargetHeight(flexibleAspectRatioItem.width, itemHeight, rowHeight);
           const widthDiff = preferredWidth - scaledItemWidth;
@@ -375,17 +404,27 @@ export function buildLayoutGraph(
         flexibleAspectRatioItems.push(toItem);
       }
 
+      // If we have any items with a preferred width, add a penalty if there are too many items in the row.
+      if (toItem.preferredWidth === "lg") lgItemCount++;
+      if (toItem.preferredWidth === "md") mdItemCount++;
+      let preferredWidthWeight = 0;
+      if (lgItemCount > 0 && rowHeightBuilder.itemCount > 1) {
+        preferredWidthWeight = 1_000 * rowHeightBuilder.itemCount;
+      } else if (mdItemCount > 0 && rowHeightBuilder.itemCount > 3) {
+        preferredWidthWeight = 500 * rowHeightBuilder.itemCount;
+      }
+
+      // If we're over the remaining space, then this can't be a breakpoint.
+      const remainingLayoutHeight = fromNode.remainingLayoutHeight - rowHeight - gap;
+      if (remainingLayoutHeight < 0) {
+        continue;
+      }
+
       const heightWeight =
         modifiedIdealRowHeight < rowHeight
           ? Math.abs(Math.pow(modifiedIdealRowHeight - rowHeight, 3))
           : Math.pow(modifiedIdealRowHeight - rowHeight, 2);
-      const weight = heightWeight + widthWeight;
-      const remainingLayoutHeight = fromNode.remainingLayoutHeight - rowHeight - gap;
-
-      // If we're over the remaining space, then this can't be a breakpoint.
-      if (remainingLayoutHeight < 0) {
-        continue;
-      }
+      const weight = heightWeight + widthWeight + preferredWidthWeight;
 
       const toNode = getOrCreateLayoutNode(toItem, remainingLayoutHeight);
       graph.addEdge(fromNode, toNode, { weight });
@@ -396,11 +435,13 @@ export function buildLayoutGraph(
     const remainingLayoutHeight = fromNode.remainingLayoutHeight - rowHeight - gap;
     if (remainingLayoutHeight >= 0) {
       const endWeight = Math.pow(remainingLayoutHeight, 2);
-      graph.addEdge(fromNode, targetNode, { weight: endWeight });
+      graph.addEdge(fromNode, endNode, { weight: endWeight });
     }
   }
 
-  return { graph, sourceNode, targetNode };
+  //console.log("items", items, graph, layoutWidth, layoutHeight, gap);
+
+  return { graph, sourceNode: startNode, targetNode: endNode };
 }
 
 export class RowHeightBuilder {
@@ -432,10 +473,12 @@ export class RowHeightBuilder {
       throw new Error("height is not a number: " + height);
     }
 
-    if (this.rowWidth === 0) {
+    if (this.rowWidth === 0 && this.flexibleRowWidth === 0) {
       this.rowWidth = width;
       this.rowHeight = height;
       if (flexibleAspectRatio) {
+        this.rowWidth = 0;
+        this.flexibleRowWidth = width;
         this.isRowHeightFlexible = true;
       }
     } else if (flexibleAspectRatio && height <= this.rowHeight) {
@@ -454,7 +497,7 @@ export class RowHeightBuilder {
     this.itemCount++;
   }
 
-  buildRowHeightForWidth(layoutWidth: number): number {
+  buildRowHeightForWidth(layoutWidth: number, options?: { supressFlexibleRowWidthPadding?: boolean }): number {
     if (typeof layoutWidth !== "number" || isNaN(layoutWidth)) {
       throw new Error("width is not a number: " + layoutWidth);
     }
@@ -462,7 +505,7 @@ export class RowHeightBuilder {
     const gap = this.gap;
     let itemCount = this.itemCount;
     let rowWidth = this.rowWidth;
-    if (this.flexibleRowWidth) {
+    if (this.flexibleRowWidth && !options?.supressFlexibleRowWidthPadding) {
       // Include some extra space for the flexible items based on how many items we have,
       // otherwise they might get very narrow if there are a lot of items in a row.
       rowWidth += Math.ceil(this.flexibleRowWidth * Math.max(Math.log2(this.itemCount), 1));
@@ -480,6 +523,7 @@ export class RowHeightBuilder {
     this.rowWidth = 0;
     this.rowHeight = 0;
     this.flexibleRowWidth = 0;
+    this.isRowHeightFlexible = false;
   }
 }
 

@@ -7,6 +7,7 @@
  */
 
 import React from "react";
+import { basicColors } from "./basicColors";
 
 let skipAddingToHistoryStack = false;
 
@@ -14,46 +15,6 @@ interface ColorPickerProps {
   color: string;
   onChange?: (value: string, skipHistoryStack: boolean) => void;
 }
-
-// const basicColors: Array<`#${string}`> = [
-//   "#d0021b",
-//   "#f5a623",
-//   "#f8e71c",
-//   "#8b572a",
-//   "#7ed321",
-//   "#417505",
-//   "#bd10e0",
-//   "#9013fe",
-//   "#4a90e2",
-//   "#50e3c2",
-//   "#b8e986",
-//   "#000000",
-//   "#4a4a4a",
-//   "#9b9b9b",
-//   "#ffffff",
-// ];
-
-const basicColors: Array<`#${string}`> = [
-  "#ffffff", // White
-  "#c0c0c0", // Silver
-  "#808080", // Gray
-  "#000000", // Black
-  "#ff0000", // Red
-  "#800000", // Maroon
-  "#ffff00", // Yellow
-  "#ffc000", // (Orange)
-  // Olive
-  "#00ff00", // Lime
-  "#008000", // Green
-  "#00ffff", // Aqua
-  "#008080", // Teal
-  "#0000ff", // Blue
-  // Navy
-  // Fuchsia
-  "#ffc0cb", // (Pink)
-  "#ff69b4", // (Hot Pink)
-  "#800080", // Purple
-];
 
 const WIDTH = 214;
 const HEIGHT = 150;

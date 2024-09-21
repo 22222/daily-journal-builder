@@ -157,7 +157,7 @@ export function FontSizeInput({
         <IconDash className="format" />
       </button>
       <input
-        type="number"
+        type="text"
         inputMode="numeric"
         pattern="[0-9]*"
         value={inputValue}
@@ -170,6 +170,7 @@ export function FontSizeInput({
         step={1}
         onChange={(e) => setInputValue(toInteger(e.target.value))}
         onKeyDown={handleKeyPress}
+        style={{width: "6ch"}}
       />
       <button
         type="button"

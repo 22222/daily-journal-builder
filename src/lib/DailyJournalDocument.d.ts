@@ -76,13 +76,18 @@ export interface DailyJournalDocumentItemBox {
    * This may be an image or text.
    */
   item: DailyJournalItem;
+
+  /**
+   * For a modified item (like the header), the original item that the item is based on.
+   */
+  originalItem?: DailyJournalTextBoxItem;
 }
 
 /**
  * The style of a item box.
  */
 export interface DailyJournalDocumentItemBoxStyle
-  extends Pick<CssOrPdfProperties, "height" | "left" | "top" | "width" | "fontSize"> {
+  extends Pick<CssOrPdfProperties, "height" | "left" | "top" | "width" | "fontSize" | "zIndex"> {
   /**
    * The width of this item box (using border-box box sizing).
    * This may be smaller than the width of the item in this box, in which case it should be scaled down to this width.
@@ -114,4 +119,9 @@ export interface DailyJournalDocumentItemBoxStyle
    * An override for a text-based item's font size, scaled down to something that should fit in the width/height.
    */
   fontSize?: `${number}pt`;
+
+  /**
+   * Specifies an explicit z-order for this item box.
+   */
+  zIndex?: number;
 }

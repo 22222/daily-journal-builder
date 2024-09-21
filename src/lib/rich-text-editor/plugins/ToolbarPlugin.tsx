@@ -26,7 +26,7 @@ import {
   UNDO_COMMAND,
 } from "lexical";
 import React from "react";
-import { INSERT_LAYOUT_COMMAND } from "./LayoutPlugin";
+//import { INSERT_LAYOUT_COMMAND } from "./LayoutPlugin";
 
 import { $isAtNodeEnd } from "@lexical/selection";
 import { ElementNode, RangeSelection, TextNode } from "lexical";
@@ -237,7 +237,7 @@ export function ToolbarPlugin(): React.ReactElement {
       // If matchingParent is a valid node, pass its format type
       const elementFormatOrUndefined = $isElementNode(node) ? node.getFormatType() : parent?.getFormatType();
       let elementFormat = elementFormatOrUndefined || "left";
-      console.log("elementFormat", elementFormatOrUndefined, node, parent);
+      //console.log("elementFormat", elementFormatOrUndefined, node, parent);
       if (elementFormat === "start") elementFormat = "left";
       if (elementFormat === "end") elementFormat = "right";
       setElementFormat(elementFormat);
@@ -408,7 +408,7 @@ export function ToolbarPlugin(): React.ReactElement {
       <div className="btn-group">
         <ElementFormatDropdown disabled={!isEditable} value={elementFormat} editor={editor} />
       </div>
-      <div className="btn-group">
+      {/* <div className="btn-group">
         <button
           className="btn btn-secondary"
           disabled={!isEditable}
@@ -420,7 +420,7 @@ export function ToolbarPlugin(): React.ReactElement {
         >
           <IconLayoutThreeColumns className="format" /> <OptionalText>Columns</OptionalText>
         </button>
-      </div>
+      </div> */}
     </div>
   );
 }

@@ -1,6 +1,10 @@
-import React from "react";
-import { DailyJournalBuilder, DailyJournalItem, DailyJournalData } from "../lib";
-import { generateRandomImage, generateRandomDimension, newRandom } from "./randomData";
+import React, { useMemo } from "react";
+import { DailyJournalBuilder, DailyJournalData, DailyJournalItem } from "../lib";
+import { resizeImageAsync } from "../lib/imageResizer";
+import { convertLengthValueToPx } from "../lib/LengthValue";
+import { createStoredImage, getStoredImage } from "./fileSystemStore";
+import { createHistoryStateStore } from "./historyStateStore";
+import { generateRandomDimension, generateRandomImage, newRandom } from "./randomData";
 
 const includeRandomData = false;
 const [initialImageRecord, initialData] = (() => {
@@ -8,7 +12,20 @@ const [initialImageRecord, initialData] = (() => {
 
   const items: DailyJournalItem[] = [];
   if (includeRandomData) {
+    const convertDataUriToBlob = (dataUri: string) => {
+      const byteString = atob(dataUri.split(",")[1]);
+      const mimeString = dataUri.split(",")[0].split(":")[1].split(";")[0];
+      const ab = new ArrayBuffer(byteString.length);
+      const ia = new Uint8Array(ab);
+      for (let i = 0; i < byteString.length; i++) {
+        ia[i] = byteString.charCodeAt(i);
+      }
+      const blob = new Blob([ab], { type: mimeString });
+      return blob;
+    };
+
     const random = newRandom(2);
+    //const random = newRandom(4);
     for (let i = 0; i < 30; i++) {
       const img = generateRandomImage(undefined, undefined, random);
       const name = `image${i}.png`;
@@ -28,34 +45,6 @@ const [initialImageRecord, initialData] = (() => {
           fontFamily: "Alice",
           fontSize: "16pt",
         },
-        // style: {
-        //   width: 800,
-        //   borderWidth: 10,
-        //   borderStyle: "solid",
-        //   borderRadius: 5,
-        //   fontFamily: "Alice",
-        //   fontSize: "32pt",
-        // },
-        // richText: {
-        //   type: "root",
-        //   children: [
-        //     {
-        //       type: "layoutContainer",
-        //       children: [
-        //         {
-        //           type: "layoutItem",
-        //           style: { textAlign: "center" },
-        //           children: [{ type: "text", style: { fontWeight: "bold" }, text: "Daily Journal" }],
-        //         },
-        //         {
-        //           type: "layoutItem",
-        //           style: { textAlign: "center" },
-        //           children: [{ type: "text", style: { fontWeight: "bold" }, text: "May 21, 2024" }],
-        //         },
-        //       ],
-        //     },
-        //   ],
-        // },
         text: "A title!",
       },
     });
@@ -100,8 +89,15 @@ const [initialImageRecord, initialData] = (() => {
           borderWidth: 10,
           borderStyle: "solid",
           borderRadius: 5,
+          borderColor: "#000000",
           fontFamily: "Alice",
           fontSize: "30pt",
+          color: "#000000",
+          backgroundColor: "#ffffff",
+          paddingBottom: 4,
+          paddingLeft: 4,
+          paddingRight: 4,
+          paddingTop: 4,
         },
         richText: {
           type: "root",
@@ -157,41 +153,90 @@ const [initialImageRecord, initialData] = (() => {
   return [imageRecord, initialData];
 })();
 
+const MAX_IMAGE_WIDTH = convertLengthValueToPx("8.5in") * 3;
+const MAX_IMAGE_HEIGHT = convertLengthValueToPx("11in") * 3;
+
 export function DailyJournalBuilderApp() {
   const [imageRecord, setImageRecord] = React.useState(initialImageRecord);
 
-  const handleImageFilesUploaded = (fileList: FileList) => {
+  const historyStateStore = useMemo(() => {
+    return createHistoryStateStore();
+  }, []);
+
+  const handleImageFilesUploaded = async (fileList: FileList) => {
     const newImageRecord = { ...imageRecord };
     const result = new Map<File, string>();
     for (const file of fileList) {
-      const name = file.name;
+      let name = file.name;
+
+      // If we're going to store the file, we may want to resize it to reduce storage size.
+      let fileForStorage: File | Blob = file;
+      try {
+        const fileSize = file.size;
+        const RESIZE_THRESHOLD_FILE_SIZE = 1 * 1024 * 1024;
+        if (!fileSize || fileSize > RESIZE_THRESHOLD_FILE_SIZE) {
+          const { width, height } = await createImageBitmap(file);
+          if (width > MAX_IMAGE_WIDTH || height > MAX_IMAGE_HEIGHT) {
+            let targetWidth: number;
+            let targetHeight: number;
+            const aspectRatio = width / height;
+            if (aspectRatio > 1) {
+              targetWidth = MAX_IMAGE_WIDTH;
+              targetHeight = Math.round(MAX_IMAGE_WIDTH / aspectRatio);
+            } else {
+              targetWidth = Math.round(MAX_IMAGE_HEIGHT * aspectRatio);
+              targetHeight = MAX_IMAGE_HEIGHT;
+            }
+            const resizedImageFile = await resizeImageAsync(file, targetWidth, targetHeight);
+            if (resizedImageFile) {
+              fileForStorage = resizedImageFile;
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to store image " + name, err);
+      }
+
+      // Store the image for future reference
+      try {
+        name = await createStoredImage(fileForStorage, name);
+      } catch (err) {
+        console.error("Failed to store image " + name, err);
+      }
+
       if (!imageRecord[name]) {
         newImageRecord[name] = file;
       }
       result.set(file, name);
     }
     setImageRecord(newImageRecord);
-    return Promise.resolve(result);
+    return result;
   };
 
-  const resolveImageFile = (name: string) => {
-    const fileOrBlob = imageRecord[name];
+  const resolveImageFile = async (name: string) => {
+    let fileOrBlob = imageRecord[name];
+
+    // If we didn't find the image, we may have to load it from storage.
+    if (!fileOrBlob) {
+      let storedFile: File | undefined;
+      try {
+        storedFile = await getStoredImage(name);
+      } catch (err) {
+        console.error("Failed to retrieve stored image " + name, err);
+        storedFile = undefined;
+      }
+
+      if (storedFile) {
+        imageRecord[name] = storedFile;
+        fileOrBlob = storedFile;
+      }
+    }
+
     if (!fileOrBlob) {
       return Promise.reject("Failed to find file for name " + name);
     }
-    return Promise.resolve(fileOrBlob);
-    // const img = imageMap.find((img) => img.id === name);
-    // if (!img) {
-    //   return Promise.reject("Failed to find file for name " + name);
-    // }
 
-    // return fetch(img.src)
-    //   .then(function (res) {
-    //     return res.arrayBuffer();
-    //   })
-    //   .then(function (buf) {
-    //     return new File([buf], img.id, { type: "image/png" });
-    //   });
+    return fileOrBlob;
   };
 
   return (
@@ -199,18 +244,7 @@ export function DailyJournalBuilderApp() {
       initialData={initialData}
       resolveImageFile={resolveImageFile}
       onImageFilesUploaded={handleImageFilesUploaded}
+      historyStateStore={historyStateStore}
     />
   );
-}
-
-function convertDataUriToBlob(dataUri: string) {
-  const byteString = atob(dataUri.split(",")[1]);
-  const mimeString = dataUri.split(",")[0].split(":")[1].split(";")[0];
-  const ab = new ArrayBuffer(byteString.length);
-  const ia = new Uint8Array(ab);
-  for (let i = 0; i < byteString.length; i++) {
-    ia[i] = byteString.charCodeAt(i);
-  }
-  const blob = new Blob([ab], { type: mimeString });
-  return blob;
 }

@@ -16,6 +16,20 @@ body.modal-open {
   overflow: hidden;
 }
 
+.text-box-toolbar > fieldset {
+  border: 1px solid #ccc;
+  padding: 5px 10px;
+  margin: 0;
+}
+
+.text-box-toolbar > fieldset > legend {
+  float: unset;
+  width: unset;
+  font-size: .75rem;
+  padding: 0;
+  margin: 0;
+}
+
 /* .toolbar .button.active {
   background-color: rgb(223, 232, 250);
 }

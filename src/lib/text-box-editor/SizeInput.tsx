@@ -1,6 +1,7 @@
 import React from "react";
 import { IconDash, IconPlus } from "../icons";
 import type { Size } from "./Size";
+import { generateUuid } from "../uuid";
 
 export interface SizeInputProps {
   value: Size | undefined;
@@ -8,6 +9,7 @@ export interface SizeInputProps {
   maxAllowedSize?: Size;
   onChange: (newValue: Size) => void;
   label?: string;
+  hideLabel?: boolean;
   disabled?: boolean;
 }
 
@@ -17,6 +19,7 @@ export function SizeInput({
   maxAllowedSize = 5,
   onChange,
   label,
+  hideLabel,
   disabled,
 }: SizeInputProps) {
   const [inputValue, setInputValue] = React.useState<Size | undefined>(value);
@@ -68,9 +71,15 @@ export function SizeInput({
     setInputValue(value);
   }, [value]);
 
+  const inputId = React.useMemo(() => `size-input-${generateUuid()}`, []);
+
   return (
     <div className="input-group">
-      {label && <span className="input-group-text">{label}</span>}
+      {label && (
+        <label htmlFor={inputId} className={`input-group-text${hideLabel ? " visually-hidden" : ""}`}>
+          {label}
+        </label>
+      )}
       <button
         type="button"
         className="btn btn-outline-secondary"
@@ -80,7 +89,7 @@ export function SizeInput({
         <IconDash className="format" />
       </button>
       <input
-        type="number"
+        type="text"
         inputMode="numeric"
         pattern="[0-9]*"
         value={inputValue}
@@ -93,6 +102,8 @@ export function SizeInput({
         step={1}
         onChange={(e) => setInputValue(toSize(e.target.value))}
         onKeyDown={handleKeyPress}
+        style={{ width: "4ch" }}
+        id={inputId}
       />
       <button
         type="button"

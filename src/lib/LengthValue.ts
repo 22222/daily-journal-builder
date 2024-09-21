@@ -83,7 +83,11 @@ function convertPxToInchesString(px: number): `${number}in` | "0" {
   if (px === 0) {
     return "0";
   }
-  return `${Number((px / dpi).toFixed(5))}in` as `${number}in`;
+  return `${convertPxToInches(px)}in` as `${number}in`;
+}
+
+function convertPxToInches(px: number): number {
+  return Number((px / dpi).toFixed(5));
 }
 
 export function convertLengthValueToPt(value: LengthValue): number {
@@ -106,7 +110,7 @@ export function convertLengthValueToPtOrUndefined(value: unknown): number | unde
     return undefined;
   }
 
-  const match = value.trim().match(/^([+-]?[0-9.]+)(px|pt)?$/i);
+  const match = value.trim().match(/^([+-]?[0-9.]+)(px|pt|in|cm)?$/i);
   if (!match) {
     return undefined;
   }
@@ -118,6 +122,10 @@ export function convertLengthValueToPtOrUndefined(value: unknown): number | unde
     case "px":
     case "":
       pt = (72 * valueNum) / dpi;
+      break;
+    case "in":
+    case "cm":
+      pt = (72 * convertLengthValueToPx(value as any)) / dpi;
       break;
     case "pt":
       pt = valueNum;

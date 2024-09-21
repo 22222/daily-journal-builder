@@ -1,8 +1,9 @@
-import React, { startTransition } from "react";
-import { convertToCssOrPdfProperties, CssOrPdfProperties } from "./CssOrPdfProperties";
+import { driver } from "driver.js";
+import "driver.js/dist/driver.css";
+import React from "react";
+import { convertToCssOrPdfProperties } from "./CssOrPdfProperties";
 import { DailyJournalData, convertDailyJournalDataToDocument } from "./DailyJournalData";
 import { DailyJournalDocument, DailyJournalDocumentContext, DailyJournalDocumentItemBox } from "./DailyJournalDocument";
-import type { Style as ReactPdfStyle } from "@react-pdf/types";
 import type {
   DailyJournalHeaderOrFooterItem,
   DailyJournalImageItem,
@@ -17,12 +18,12 @@ import {
   convertLengthValueToPxOrUndefined,
 } from "./LengthValue";
 import type {
+  RichTextElementNode,
   RichTextNode,
+  RichTextRootNode,
   RichTextTextNode,
   TextBoxData,
   TextBoxStyle,
-  RichTextRootNode,
-  RichTextElementNode,
 } from "./TextBoxData";
 import {
   calculateTextBoxDataHeightPx,
@@ -31,29 +32,38 @@ import {
   convertLexicalEditorStateToTextBoxData,
   convertTextBoxDataToLexicalInitialEditorState,
 } from "./TextBoxData";
+import { generateDocxBlob } from "./docxGenerator";
 import { saveAs } from "./fileSaver";
 import { FontFace } from "./fonts/FontFace";
 import { WebFonts } from "./fonts/WebFonts";
 import { standardFonts } from "./fonts/standardFonts";
-import { IconArrowClockwise, IconArrowCounterclockwise, IconFileEarmarkPlus, IconPlus } from "./icons";
+import {
+  IconArrowClockwise,
+  IconArrowCounterclockwise,
+  IconDownload,
+  IconFileEarmarkPlus,
+  IconPlus,
+  IconQuestionCircle,
+} from "./icons";
 import { resizeImageAsync } from "./imageResizer";
 import { Layout, LayoutItem, buildLayout } from "./layoutBuilder";
+import { generatePubBlob as generatePubMhtBlob } from "./pubDocumentGenerator";
 import { generatePdfBlob } from "./reactPdfDocumentGenerator";
 import { EditorComposer } from "./rich-text-editor/EditorComposer";
 import { useEditor } from "./rich-text-editor/useEditor";
 import { TextBoxEditor } from "./text-box-editor/TextBoxEditor";
-import { convertWidthTypeToLengthValue } from "./text-box-editor/WidthType";
+import { convertLengthValueToSimpleWidthType, convertSimpleWidthTypeToLengthValue } from "./text-box-editor/WidthType";
 import { OptionalText } from "./ui/OptionalText";
 import { useModal } from "./ui/useModal";
-import { useHistoryState } from "./useHistoryState";
-import { generateUuid } from "./uuid";
-import { convertSizeToInchesStringOrUndefined } from "./text-box-editor/Size";
 import { useAsync } from "./useAsync";
+import { HistoryStateStore, useHistoryState } from "./useHistoryState";
+import { generateUuid } from "./uuid";
 
 export interface DailyJournalBuilderProps {
   initialData?: Partial<DailyJournalData>;
   resolveImageFile: (name: string) => Promise<File | Blob>;
   onImageFilesUploaded: (files: FileList) => Promise<Map<File, string>>;
+  historyStateStore?: HistoryStateStore<DailyJournalData>;
 }
 
 const IS_APPLE: boolean = /Mac|iPod|iPhone|iPad/.test(navigator.platform);
@@ -73,7 +83,10 @@ export function DailyJournalBuilder(props: DailyJournalBuilderProps) {
     canRedo,
     undo,
     redo,
-  } = useHistoryState<DailyJournalData>(createDefaultDailyJournalInputData(initialData));
+    isPending: isDailyJournalDataPending,
+  } = useHistoryState<DailyJournalData>(createDefaultDailyJournalInputData(initialData), {
+    store: props.historyStateStore,
+  });
   const [layout, setLayout] = React.useState<Layout<DailyJournalLayoutItem> | undefined>(undefined);
   const [modal, showModal] = useModal();
 
@@ -109,20 +122,41 @@ export function DailyJournalBuilder(props: DailyJournalBuilderProps) {
   if (dailyJournalData.header) {
     layoutHeight -= dailyJournalData.header.height - dailyJournalData.style.gap;
   }
-  if (dailyJournalData.footer) {
-    layoutHeight -= dailyJournalData.footer.height - dailyJournalData.style.gap;
-  }
+  //console.log("layoutWidth", layoutWidth, "layoutHeight", layoutHeight);
 
   React.useEffect(() => {
-    const layoutItems: DailyJournalLayoutItem[] = items.map((item, i) => ({
-      key: `${item.type}-${item.name}`,
-      width: item.width,
-      height: item.height,
-      flexibleAspectRatio: item.type === "textBox",
-      featured: item.featured,
-      //rowSpan: item.rowSpan,
-      innerItem: item,
-    }));
+    const layoutItems: DailyJournalLayoutItem[] = items.map((item, i) => {
+      const result: DailyJournalLayoutItem = {
+        key: `${item.type}-${item.name}`,
+        width: item.width,
+        height: item.height,
+        flexibleAspectRatio: item.type === "textBox",
+        featured: item.featured,
+        //rowSpan: item.rowSpan,
+        innerItem: item,
+      };
+
+      // For a textBox, set some hard limits on the minWidth in some cases.
+      if (item.type === "textBox" && item.data.style?.width) {
+        const widthType = convertLengthValueToSimpleWidthType(
+          item.data.style.width,
+          convertLengthValueToPxOrUndefined(pageWidth),
+        );
+        if (widthType === "sm" || widthType === "md" || widthType === "lg") {
+          result.preferredWidth = widthType;
+        }
+
+        // if (widthType === "sm") {
+        //   result.minWidth = (layoutWidth * 0.25) | 0;
+        // } else if (widthType === "md") {
+        //   result.minWidth = (layoutWidth * 0.5) | 0;
+        // } else if (widthType === "lg") {
+        //   result.minWidth = layoutWidth - 1;
+        // }
+      }
+
+      return result;
+    });
     const t0 = performance.now();
     const layout = buildLayout(layoutItems, {
       layoutWidth: layoutWidth,
@@ -152,11 +186,76 @@ export function DailyJournalBuilder(props: DailyJournalBuilderProps) {
     //});
   }, [items]);
 
+  React.useEffect(() => {
+    const dismissed = localStorage.getItem("help_dismissed");
+    if (!dismissed) {
+      const driverObj = driver({
+        onDestroyed: () => {
+          localStorage.setItem("help_dismissed", "true");
+        },
+      });
+      driverObj.highlight({
+        element: '[data-tour="help"]',
+        popover: { title: "Need help?", description: "Click this button to start a guided tour.", side: "left" },
+      });
+    }
+  }, []);
+
+  const handleHelp = (e?: React.SyntheticEvent) => {
+    e?.preventDefault();
+
+    const driverObj = driver({
+      showProgress: true,
+      steps: [
+        {
+          element: '[data-tour="new"]',
+          popover: {
+            title: "New",
+            description: "Start a new page. This clears the images and text and sets today's date.",
+            side: "bottom",
+          },
+        },
+        {
+          element: '[data-tour="add-picture"]',
+          popover: {
+            title: "Add pictures",
+            description: "Add one or more photos from your computer to the page.",
+            side: "bottom",
+          },
+        },
+        {
+          element: '[data-tour="add-text"]',
+          popover: {
+            title: "Add text",
+            description: "Add a textbox so you can type a note or caption.",
+            side: "bottom",
+          },
+        },
+        {
+          element: '[data-tour="download-pdf"]',
+          popover: {
+            title: "Download as PDF",
+            description: "Save your page as a PDF file you can print or share.",
+            side: "bottom",
+          },
+        },
+        {
+          element: '[data-tour="download-pub"]',
+          popover: {
+            title: "Download for Publisher",
+            description: "Save a file that can be opened in Microsoft Publisher.",
+            side: "bottom",
+          },
+        },
+      ],
+    });
+    driverObj.drive();
+  };
+
   const handleNew = () => {
     const newDailyJournalInputData = { ...dailyJournalData };
     newDailyJournalInputData.header = createNewHeader(dailyJournalData.header);
     newDailyJournalInputData.items = [];
-    newDailyJournalInputData.footer = undefined;
     setDailyJournalData(newDailyJournalInputData);
   };
 
@@ -222,6 +321,7 @@ export function DailyJournalBuilder(props: DailyJournalBuilderProps) {
         fontSize: "24pt",
         borderStyle: "solid",
         borderWidth: 10,
+        borderColor: "#000000",
         ...oldHeader?.data?.style,
         width: layoutWidth,
       },
@@ -238,11 +338,12 @@ export function DailyJournalBuilder(props: DailyJournalBuilderProps) {
       height,
       data: textBoxData,
     };
-    console.log("newHeader", width, newHeader);
+    //console.log("newHeader", width, newHeader);
     return newHeader;
   }
 
   function handleAddTextBox() {
+    console.log("handleAddTextBox");
     showModal({
       getContent: (onClose) => {
         const handleSave = (textBoxData: TextBoxData) => {
@@ -261,6 +362,7 @@ export function DailyJournalBuilder(props: DailyJournalBuilderProps) {
           newItems.push(newItem);
           setItems(newItems);
         };
+
         return (
           <TextBoxEditorModalContentComposer
             initialData={undefined}
@@ -283,7 +385,7 @@ export function DailyJournalBuilder(props: DailyJournalBuilderProps) {
 
     const uploadedItems: DailyJournalItem[] = [];
     for (const file of fileList) {
-      console.log("file", file);
+      //console.log("file", file);
       let size: { width: number; height: number };
       try {
         size = await loadImageSizeAsync(file);
@@ -337,8 +439,8 @@ export function DailyJournalBuilder(props: DailyJournalBuilderProps) {
     }
 
     const newItems = [...items];
-    newItems[i] = newItems[0];
-    newItems[0] = item;
+    newItems.splice(i, 1);
+    newItems.unshift(item);
     setItems(newItems);
   };
 
@@ -373,8 +475,8 @@ export function DailyJournalBuilder(props: DailyJournalBuilderProps) {
     }
 
     const newItems = [...items];
-    newItems[i] = newItems[items.length - 1];
-    newItems[items.length - 1] = item;
+    newItems.splice(i, 1);
+    newItems.push(item);
     setItems(newItems);
   };
 
@@ -392,7 +494,7 @@ export function DailyJournalBuilder(props: DailyJournalBuilderProps) {
   };
 
   const handleEdit = (item: DailyJournalItem) => {
-    console.log("edit");
+    //console.log("edit");
     if (item.type === "textBox") {
       const isHeader = item.name === "header";
       showModal({
@@ -530,6 +632,60 @@ export function DailyJournalBuilder(props: DailyJournalBuilderProps) {
     await saveAs(pdfBlob, fileName);
   };
 
+  const handleDownloadDocx = async () => {
+    if (!dailyJournalDocument) {
+      return;
+    }
+
+    const context = await generateDocumentContextAsync({
+      dailyJournalDocument,
+      layout,
+      resolveImageFile,
+      resolveFontFaces,
+    });
+    if (!context) {
+      return;
+    }
+
+    const docxBlob = await generateDocxBlob(dailyJournalDocument, context);
+    if (!docxBlob) {
+      return;
+    }
+
+    // TODO: try to get date from header before falling back to now
+    const now = new Date();
+    const dateStr = `${now.getFullYear().toString().padStart(4, "0")}-${(now.getMonth() + 1).toString().padStart(2, "0")}--${now.getDate().toString().padStart(2, "0")}`;
+    const fileName = `dailyjournal-${dateStr}.docx`;
+    await saveAs(docxBlob, fileName);
+  };
+
+  const handleDownloadPub = async () => {
+    if (!dailyJournalDocument) {
+      return;
+    }
+
+    const context = await generateDocumentContextAsync({
+      dailyJournalDocument,
+      layout,
+      resolveImageFile,
+      resolveFontFaces,
+    });
+    if (!context) {
+      return;
+    }
+
+    const pubBlob = await generatePubMhtBlob(dailyJournalDocument, context);
+    if (!pubBlob) {
+      return;
+    }
+
+    // TODO: try to get date from header before falling back to now
+    const now = new Date();
+    const dateStr = `${now.getFullYear().toString().padStart(4, "0")}-${(now.getMonth() + 1).toString().padStart(2, "0")}--${now.getDate().toString().padStart(2, "0")}`;
+    const fileName = `dailyjournal-${dateStr}.mht`;
+    await saveAs(pubBlob, fileName);
+  };
+
   return (
     <React.Fragment>
       <WebFonts fonts={standardFonts} />
@@ -567,10 +723,17 @@ export function DailyJournalBuilder(props: DailyJournalBuilderProps) {
               </button>
             </div>
             <div className="btn-group">
-              <button type="button" className="btn btn-secondary" onClick={handleNew} title="New" aria-label="New">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={handleNew}
+                title="New"
+                aria-label="New"
+                data-tour="new"
+              >
                 <IconFileEarmarkPlus /> <OptionalText>New</OptionalText>
               </button>
-              <FileUploadButton onFileListUploaded={handleFileListUploaded}>
+              <FileUploadButton onFileListUploaded={handleFileListUploaded} data-tour="add-picture">
                 <IconPlus /> Picture
               </FileUploadButton>
               <button
@@ -579,6 +742,7 @@ export function DailyJournalBuilder(props: DailyJournalBuilderProps) {
                 onClick={handleAddTextBox}
                 title="Add Text"
                 aria-label="Add Text"
+                data-tour="add-text"
               >
                 <IconPlus /> Text
               </button>
@@ -587,12 +751,46 @@ export function DailyJournalBuilder(props: DailyJournalBuilderProps) {
               <button
                 type="button"
                 className="btn btn-secondary"
+                onClick={handleDownloadPdf}
                 disabled={!layout}
                 title="Download PDF"
                 aria-label="Download PDF"
-                onClick={handleDownloadPdf}
+                data-tour="download-pdf"
               >
-                Download PDF
+                <IconDownload /> PDF
+              </button>
+              {/* <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={!layout}
+                title="Download Word"
+                aria-label="Download Word"
+                onClick={handleDownloadDocx}
+              >
+                Download Word
+              </button> */}
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={handleDownloadPub}
+                disabled={!layout}
+                title="Download MS Publisher"
+                aria-label="Download MS Publisher"
+                data-tour="download-pub"
+              >
+                <IconDownload /> Pub
+              </button>
+            </div>
+            <div className="btn-group ms-2">
+              <button
+                type="button"
+                onClick={handleHelp}
+                className="btn btn-secondary"
+                title="Help"
+                aria-label="Help"
+                data-tour="help"
+              >
+                <IconQuestionCircle />
               </button>
             </div>
           </div>
@@ -618,18 +816,24 @@ export function DailyJournalBuilder(props: DailyJournalBuilderProps) {
             {!dailyJournalData.header && <React.Fragment></React.Fragment>}
             {dailyJournalDocument.itemBoxes.map((itemBox, i) => {
               const item = itemBox.item;
+              const originalItem = itemBox.originalItem ?? item;
               const itemIndex = items.indexOf(item);
+              const canMove = originalItem.name !== "header" && itemIndex >= 0;
               return (
                 <div key={itemBox.key} style={itemBox.style}>
                   <ItemBoxButton
                     itemBox={itemBox}
-                    onClickMoveStart={itemIndex > 0 ? handleMoveStart.bind(undefined, item) : undefined}
-                    onClickMoveLeft={itemIndex > 0 ? handleMoveLeft.bind(undefined, item) : undefined}
-                    onClickMoveRight={itemIndex < items.length - 1 ? handleMoveRight.bind(undefined, item) : undefined}
-                    onClickMoveEnd={itemIndex < items.length - 1 ? handleMoveEnd.bind(undefined, item) : undefined}
-                    onClickToggleFeatured={handleToggleFeatured.bind(undefined, item)}
-                    onClickEdit={handleEdit.bind(undefined, item)}
-                    onClickDelete={handleDelete.bind(undefined, item)}
+                    onClickMoveStart={canMove && itemIndex > 0 ? handleMoveStart.bind(undefined, item) : undefined}
+                    onClickMoveLeft={canMove && itemIndex > 0 ? handleMoveLeft.bind(undefined, item) : undefined}
+                    onClickMoveRight={
+                      canMove && itemIndex < items.length - 1 ? handleMoveRight.bind(undefined, item) : undefined
+                    }
+                    onClickMoveEnd={
+                      canMove && itemIndex < items.length - 1 ? handleMoveEnd.bind(undefined, item) : undefined
+                    }
+                    onClickToggleFeatured={canMove ? handleToggleFeatured.bind(undefined, item) : undefined}
+                    onClickEdit={handleEdit.bind(undefined, originalItem)}
+                    onClickDelete={handleDelete.bind(undefined, originalItem)}
                   >
                     {item.type === "image" && <ImageWrapper itemBox={itemBox} resolveImageFile={resolveImageFile} />}
                     {item.type === "textBox" && (
@@ -673,7 +877,6 @@ function createDefaultDailyJournalInputData(initialDailyJournalData: Partial<Dai
     },
     header: initialDailyJournalData?.header,
     items: initialDailyJournalData?.items ?? [],
-    footer: initialDailyJournalData?.footer,
   };
   return data;
 }
@@ -909,7 +1112,7 @@ function TextBoxDataView({
   return result;
 }
 
-const allowFlexbox = true;
+//const allowFlexbox = true;
 function RichTextNodeView({
   node,
   parent,
@@ -933,52 +1136,52 @@ function RichTextNodeView({
   }
 
   let style = convertToCssOrPdfProperties(node.style);
-  if (node.type === "layoutContainer") {
-    if (allowFlexbox) {
-      style = {
-        ...style,
-        display: "flex",
-        flexDirection: "row",
-        flexWrap: "nowrap",
-        justifyContent: "space-between",
-        alignItems: "center",
-      };
-    } else {
-      style = {
-        ...style,
-        position: "relative",
-      };
-    }
-  } else if (node.type === "layoutItem") {
-    if (allowFlexbox) {
-      style = { ...style, flexGrow: 1 };
-    } else {
-      const rowItemCount = Math.max(parent?.children.length ?? 0, 1);
-      const rowItemIndex = Math.max(parent?.children?.indexOf(node) ?? -1, 0);
-      const itemWidth = (convertLengthValueToPxOrUndefined(parentWidth) ?? 0) / rowItemCount;
-      const left = itemWidth * rowItemIndex;
-      let justifyContent: CssOrPdfProperties["justifyContent"] | undefined;
-      if (style?.textAlign === "left") {
-        justifyContent = "flex-start";
-      } else if (style?.textAlign === "right") {
-        justifyContent = "flex-end";
-      } else {
-        justifyContent = style?.textAlign;
-      }
+  // if (node.type === "layoutContainer") {
+  //   if (allowFlexbox) {
+  //     style = {
+  //       ...style,
+  //       display: "flex",
+  //       flexDirection: "row",
+  //       flexWrap: "nowrap",
+  //       justifyContent: "space-between",
+  //       alignItems: "center",
+  //     };
+  //   } else {
+  //     style = {
+  //       ...style,
+  //       position: "relative",
+  //     };
+  //   }
+  // } else if (node.type === "layoutItem") {
+  //   if (allowFlexbox) {
+  //     style = { ...style, flexGrow: 1 };
+  //   } else {
+  //     const rowItemCount = Math.max(parent?.children.length ?? 0, 1);
+  //     const rowItemIndex = Math.max(parent?.children?.indexOf(node) ?? -1, 0);
+  //     const itemWidth = (convertLengthValueToPxOrUndefined(parentWidth) ?? 0) / rowItemCount;
+  //     const left = itemWidth * rowItemIndex;
+  //     let justifyContent: CssOrPdfProperties["justifyContent"] | undefined;
+  //     if (style?.textAlign === "left") {
+  //       justifyContent = "flex-start";
+  //     } else if (style?.textAlign === "right") {
+  //       justifyContent = "flex-end";
+  //     } else {
+  //       justifyContent = style?.textAlign;
+  //     }
 
-      style = {
-        ...style,
-        position: "absolute",
-        left: convertLengthValueToInchesString(left),
-        top: "0",
-        width: convertLengthValueToInchesString(itemWidth),
-        height: convertLengthValueToInchesString(parentHeight),
-        display: "flex",
-        alignItems: "center",
-        justifyContent,
-      };
-    }
-  }
+  //     style = {
+  //       ...style,
+  //       position: "absolute",
+  //       left: convertLengthValueToInchesString(left),
+  //       top: "0",
+  //       width: convertLengthValueToInchesString(itemWidth),
+  //       height: convertLengthValueToInchesString(parentHeight),
+  //       display: "flex",
+  //       alignItems: "center",
+  //       justifyContent,
+  //     };
+  //   }
+  // }
 
   return (
     <Tag style={style}>
@@ -1033,9 +1236,9 @@ function TextBoxEditorModalContent({
   const editor = useEditor();
   const [textBoxStyle, setTextBoxStyle] = React.useState<TextBoxStyle>(
     initialStyle ?? {
-      fontFamily: "Arial",
+      fontFamily: standardFonts[0]?.fontFamily ?? "Helvetica",
       fontSize: "14pt",
-      width: convertWidthTypeToLengthValue("50%", convertLengthValueToPxOrUndefined(pageWidth)),
+      width: convertSimpleWidthTypeToLengthValue("md", convertLengthValueToPxOrUndefined(pageWidth)),
       color: "#000000",
       backgroundColor: "#ffffff",
       paddingLeft: 8,
@@ -1140,6 +1343,32 @@ async function generateDocumentContextAsync(props: {
   const resolvedFontFamilies = new Set<string>();
   const imagesRecord: Record<string, File | Blob> = {};
 
+  console.log("generateDocumentContextAsync", dailyJournalDocument);
+
+  // const fallbackFontFamily = "Helvetica";
+  // if (!resolvedFontFamilies.has(fallbackFontFamily)) {
+  //   let fallbackFamilyFonts = await resolveFontFaces(fallbackFontFamily);
+  //   if (fallbackFamilyFonts.length === 0) {
+  //     fallbackFamilyFonts = await resolveFontFaces("Arimo");
+  //   }
+  //   if (fallbackFamilyFonts.length === 0) {
+  //     fallbackFamilyFonts = await resolveFontFaces("Nimbus Sans L");
+  //   }
+  //   if (fallbackFamilyFonts.length === 0) {
+  //     fallbackFamilyFonts = await resolveFontFaces("Nimbus Sans");
+  //   }
+  //   fonts.push(...fallbackFamilyFonts);
+  // }
+
+  if (dailyJournalDocument.fontFamilyNames) {
+    for (const fontFamily of dailyJournalDocument.fontFamilyNames) {
+      if (!resolvedFontFamilies.has(fontFamily)) {
+        const familyFonts = await resolveFontFaces(fontFamily);
+        fonts.push(...familyFonts);
+      }
+    }
+  }
+
   for (const itemBox of dailyJournalDocument.itemBoxes) {
     const item = itemBox.item;
     if (
@@ -1200,14 +1429,15 @@ async function generateDocumentContextAsync(props: {
 interface FileUploadButtonProps {
   onFileListUploaded(fileList: FileList | null | undefined): Promise<void>;
   children?: React.ReactNode;
+  "data-tour"?: string;
 }
 
 function FileUploadButton(props: FileUploadButtonProps) {
-  const { onFileListUploaded, children } = props;
+  const { onFileListUploaded, children, "data-tour": dataTour } = props;
   const [submitting, setSubmitting] = React.useState(false);
 
   return (
-    <label className="btn btn-secondary">
+    <label className="btn btn-secondary" data-tour={dataTour}>
       <input
         type="file"
         accept="image/*"
