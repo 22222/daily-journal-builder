@@ -1,7 +1,13 @@
 import type { DailyJournalData } from "../lib/DailyJournalData";
 import { HistoryEntry, HistoryStateStore } from "../lib/useHistoryState";
 import { clearStoredImages, deleteStoredImages, getOldStoredImageNames } from "./fileSystemStore";
-import { clearEntries, getAllEntries, removeEntries, setEntry } from "./indexedDbStore";
+import {
+  clearEntriesForAllSessions,
+  getAllEntries,
+  removeEntries,
+  setEntry,
+  getAllEntriesForAllSessions,
+} from "./indexedDbStore";
 
 export function createHistoryStateStore(): HistoryStateStore<DailyJournalData> {
   const store: HistoryStateStore<DailyJournalData> = {
@@ -16,7 +22,7 @@ export function createHistoryStateStore(): HistoryStateStore<DailyJournalData> {
       garbageCollect();
     },
     async clear() {
-      await clearEntries();
+      await clearEntriesForAllSessions();
       await clearStoredImages();
     },
   };
@@ -43,7 +49,7 @@ function garbageCollect() {
 }
 
 async function getAllReferencedImageIds(): Promise<Set<string>> {
-  const entries = await getAllEntries();
+  const entries = await getAllEntriesForAllSessions();
   const ids = new Set<string>();
   for (const entry of entries) {
     const data = entry.value;

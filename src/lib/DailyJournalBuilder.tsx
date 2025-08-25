@@ -1,5 +1,3 @@
-import { driver } from "driver.js";
-import "driver.js/dist/driver.css";
 import React from "react";
 import { convertToCssOrPdfProperties } from "./CssOrPdfProperties";
 import { DailyJournalData, convertDailyJournalDataToDocument } from "./DailyJournalData";
@@ -53,7 +51,7 @@ import { EditorComposer } from "./rich-text-editor/EditorComposer";
 import { useEditor } from "./rich-text-editor/useEditor";
 import { TextBoxEditor } from "./text-box-editor/TextBoxEditor";
 import { convertLengthValueToSimpleWidthType, convertSimpleWidthTypeToLengthValue } from "./text-box-editor/WidthType";
-import { OptionalText } from "./ui/OptionalText";
+import { startTour, startTourHighlightIfNecessary } from "./tour";
 import { useModal } from "./ui/useModal";
 import { useAsync } from "./useAsync";
 import { HistoryStateStore, useHistoryState } from "./useHistoryState";
@@ -187,69 +185,12 @@ export function DailyJournalBuilder(props: DailyJournalBuilderProps) {
   }, [items]);
 
   React.useEffect(() => {
-    const dismissed = localStorage.getItem("help_dismissed");
-    if (!dismissed) {
-      const driverObj = driver({
-        onDestroyed: () => {
-          localStorage.setItem("help_dismissed", "true");
-        },
-      });
-      driverObj.highlight({
-        element: '[data-tour="help"]',
-        popover: { title: "Need help?", description: "Click this button to start a guided tour.", side: "left" },
-      });
-    }
+    startTourHighlightIfNecessary();
   }, []);
 
   const handleHelp = (e?: React.SyntheticEvent) => {
     e?.preventDefault();
-
-    const driverObj = driver({
-      showProgress: true,
-      steps: [
-        {
-          element: '[data-tour="new"]',
-          popover: {
-            title: "New",
-            description: "Start a new page. This clears the images and text and sets today's date.",
-            side: "bottom",
-          },
-        },
-        {
-          element: '[data-tour="add-picture"]',
-          popover: {
-            title: "Add pictures",
-            description: "Add one or more photos from your computer to the page.",
-            side: "bottom",
-          },
-        },
-        {
-          element: '[data-tour="add-text"]',
-          popover: {
-            title: "Add text",
-            description: "Add a textbox so you can type a note or caption.",
-            side: "bottom",
-          },
-        },
-        {
-          element: '[data-tour="download-pdf"]',
-          popover: {
-            title: "Download as PDF",
-            description: "Save your page as a PDF file you can print or share.",
-            side: "bottom",
-          },
-        },
-        {
-          element: '[data-tour="download-pub"]',
-          popover: {
-            title: "Download for Publisher",
-            description: "Save a file that can be opened in Microsoft Publisher.",
-            side: "bottom",
-          },
-        },
-      ],
-    });
-    driverObj.drive();
+    startTour();
   };
 
   const handleNew = () => {
@@ -549,11 +490,11 @@ export function DailyJournalBuilder(props: DailyJournalBuilderProps) {
           return (
             <div className="modal-content">
               <div className="modal-header">
-                <h5 className="modal-title">Edit</h5>
+                <h5 className="modal-title">Edit Picture</h5>
                 <button type="button" className="btn-close" aria-label="Close" onClick={onClose}></button>
               </div>
               <div className="modal-body">
-                <p>Test</p>
+                <p>Editing pictures is not supported yet. But you can remove and replace them.</p>
               </div>
               <div className="modal-footer">
                 <div className="btn-toolbar justify-content-end">
@@ -697,9 +638,66 @@ export function DailyJournalBuilder(props: DailyJournalBuilderProps) {
           minWidth: "fit-content",
         }}
       >
-        <header className="container">
+        <header className="container mb-1">
           <div className="btn-toolbar gap-1">
             <div className="btn-group">
+              <FileUploadButton
+                onFileListUploaded={handleFileListUploaded}
+                title="Add Picture"
+                aria-label="Add Picture"
+                data-tour="add-picture"
+              >
+                <IconPlus /> Picture
+              </FileUploadButton>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={handleAddTextBox}
+                title="Add Text"
+                aria-label="Add Text"
+                data-tour="add-text"
+              >
+                <IconPlus /> Text
+              </button>
+            </div>
+            <div className="btn-group" data-tour="download">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={handleDownloadPdf}
+                disabled={!layout}
+                title="Download PDF"
+                aria-label="Download PDF"
+              >
+                <IconDownload /> PDF
+              </button>
+              {/* <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={!layout}
+                title="Download Word"
+                aria-label="Download Word"
+                onClick={handleDownloadDocx}
+              >
+                Download Word
+              </button> */}
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={handleDownloadPub}
+                disabled={!layout}
+                title="Download MS Publisher"
+                aria-label="Download MS Publisher"
+              >
+                <IconDownload /> Pub
+              </button>
+            </div>
+            <div className="btn-group" data-tour="new">
+              <button type="button" className="btn btn-secondary" onClick={handleNew} title="New" aria-label="New">
+                <IconFileEarmarkPlus /> New
+              </button>
+            </div>
+            <div className="btn-group" data-tour="undo-redo">
               <button
                 type="button"
                 className="btn btn-secondary"
@@ -723,65 +721,6 @@ export function DailyJournalBuilder(props: DailyJournalBuilderProps) {
               </button>
             </div>
             <div className="btn-group">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={handleNew}
-                title="New"
-                aria-label="New"
-                data-tour="new"
-              >
-                <IconFileEarmarkPlus /> <OptionalText>New</OptionalText>
-              </button>
-              <FileUploadButton onFileListUploaded={handleFileListUploaded} data-tour="add-picture">
-                <IconPlus /> Picture
-              </FileUploadButton>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={handleAddTextBox}
-                title="Add Text"
-                aria-label="Add Text"
-                data-tour="add-text"
-              >
-                <IconPlus /> Text
-              </button>
-            </div>
-            <div className="btn-group">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={handleDownloadPdf}
-                disabled={!layout}
-                title="Download PDF"
-                aria-label="Download PDF"
-                data-tour="download-pdf"
-              >
-                <IconDownload /> PDF
-              </button>
-              {/* <button
-                type="button"
-                className="btn btn-secondary"
-                disabled={!layout}
-                title="Download Word"
-                aria-label="Download Word"
-                onClick={handleDownloadDocx}
-              >
-                Download Word
-              </button> */}
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={handleDownloadPub}
-                disabled={!layout}
-                title="Download MS Publisher"
-                aria-label="Download MS Publisher"
-                data-tour="download-pub"
-              >
-                <IconDownload /> Pub
-              </button>
-            </div>
-            <div className="btn-group ms-2">
               <button
                 type="button"
                 onClick={handleHelp}
@@ -1263,7 +1202,7 @@ function TextBoxEditorModalContent({
   return (
     <div className="modal-content">
       <div className="modal-header">
-        <h5 className="modal-title">Edit</h5>
+        <h5 className="modal-title">Edit Textbox</h5>
         <button type="button" className="btn-close" aria-label="Close" onClick={onClose}></button>
       </div>
       <div className="modal-body">
@@ -1430,14 +1369,16 @@ interface FileUploadButtonProps {
   onFileListUploaded(fileList: FileList | null | undefined): Promise<void>;
   children?: React.ReactNode;
   "data-tour"?: string;
+  title?: string;
+  "aria-label"?: string;
 }
 
 function FileUploadButton(props: FileUploadButtonProps) {
-  const { onFileListUploaded, children, "data-tour": dataTour } = props;
+  const { onFileListUploaded, children, ...labelProps } = props;
   const [submitting, setSubmitting] = React.useState(false);
 
   return (
-    <label className="btn btn-secondary" data-tour={dataTour}>
+    <label className="btn btn-secondary" {...labelProps}>
       <input
         type="file"
         accept="image/*"

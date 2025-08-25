@@ -8,5 +8,6 @@ export default defineConfig({
   //external: ["react"],
   loader: {
     ".ttf": "base64",
+    ".webp": "dataurl",
   },
 });

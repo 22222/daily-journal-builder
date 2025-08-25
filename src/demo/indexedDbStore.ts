@@ -218,16 +218,28 @@ export async function removeEntries(ids: number[]): Promise<void> {
   });
 }
 
-export async function clearEntries(): Promise<void> {
-  const sessionId = await sessionIdPromise;
+export async function getAllEntriesForAllSessions(): Promise<HistoryEntry<DailyJournalData>[]> {
+  const db = await openDB();
+  return await new Promise<any[]>((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readonly");
+    const store = tx.objectStore(STORE_NAME);
+    const req = store.getAll();
+    req.onsuccess = () => resolve(req.result as HistoryEntry<DailyJournalData>[]);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+export async function clearEntriesForAllSessions(): Promise<void> {
+  //const sessionId = await sessionIdPromise;
   const db = await openDB();
 
   let removeCounter = 0;
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite");
     const store = tx.objectStore(STORE_NAME);
-    const range = IDBKeyRange.bound([sessionId, 0], [sessionId, Number.MAX_SAFE_INTEGER]);
-    const getReq = store.getAllKeys(range);
+    //const range = IDBKeyRange.bound([sessionId, 0], [sessionId, Number.MAX_SAFE_INTEGER]);
+    //const getReq = store.getAllKeys(range);
+    const getReq = store.getAllKeys();
     getReq.onsuccess = () => {
       const keys = getReq.result as [string, number][];
       let pending = keys.length;
@@ -245,33 +257,33 @@ export async function clearEntries(): Promise<void> {
     getReq.onerror = () => reject(getReq.error);
   });
 
-  // Clear other inactive sessions
-  if (otherInactiveSessionIds.size > 0) {
-    const activeSessionIds = await getActiveSessionIds();
-    for (const sid of otherInactiveSessionIds) {
-      if (activeSessionIds.has(sid)) continue;
+  // // Clear other inactive sessions
+  // if (otherInactiveSessionIds.size > 0) {
+  //   const activeSessionIds = await getActiveSessionIds();
+  //   for (const sid of otherInactiveSessionIds) {
+  //     if (activeSessionIds.has(sid)) continue;
 
-      await new Promise<void>((resolve, reject) => {
-        const tx = db.transaction(STORE_NAME, "readwrite");
-        const store = tx.objectStore(STORE_NAME);
-        const range = IDBKeyRange.bound([sid, 0], [sid, Number.MAX_SAFE_INTEGER]);
-        const getReq = store.getAllKeys(range);
-        getReq.onsuccess = () => {
-          const keys = getReq.result as [string, number][];
-          let pending = keys.length;
-          if (pending === 0) return resolve();
-          keys.forEach((key) => {
-            const delReq = store.delete(key);
-            delReq.onsuccess = () => {
-              removeCounter++;
-              pending--;
-              if (pending === 0) resolve();
-            };
-            delReq.onerror = () => reject(delReq.error);
-          });
-        };
-        getReq.onerror = () => reject(getReq.error);
-      });
-    }
-  }
+  //     await new Promise<void>((resolve, reject) => {
+  //       const tx = db.transaction(STORE_NAME, "readwrite");
+  //       const store = tx.objectStore(STORE_NAME);
+  //       const range = IDBKeyRange.bound([sid, 0], [sid, Number.MAX_SAFE_INTEGER]);
+  //       const getReq = store.getAllKeys(range);
+  //       getReq.onsuccess = () => {
+  //         const keys = getReq.result as [string, number][];
+  //         let pending = keys.length;
+  //         if (pending === 0) return resolve();
+  //         keys.forEach((key) => {
+  //           const delReq = store.delete(key);
+  //           delReq.onsuccess = () => {
+  //             removeCounter++;
+  //             pending--;
+  //             if (pending === 0) resolve();
+  //           };
+  //           delReq.onerror = () => reject(delReq.error);
+  //         });
+  //       };
+  //       getReq.onerror = () => reject(getReq.error);
+  //     });
+  //   }
+  // }
 }

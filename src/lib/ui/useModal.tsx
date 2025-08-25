@@ -16,7 +16,7 @@ export interface ShowModalOptions {
   size?: "sm" | "md" | "lg" | "xl";
 }
 
-export function useModal(): [React.ReactElement | null, (options: ShowModalOptions) => void] {
+export function useModal(): [React.ReactElement | null, (options: ShowModalOptions) => void, () => void] {
   const [modalContent, setModalContent] = React.useState<null | {
     content: React.ReactElement;
     closeOnClickOutside: boolean;
@@ -51,5 +51,9 @@ export function useModal(): [React.ReactElement | null, (options: ShowModalOptio
     [onClose],
   );
 
-  return [modal, showModal];
+  const closeModal = React.useCallback(() => {
+    setModalContent(null);
+  }, []);
+
+  return [modal, showModal, closeModal];
 }
