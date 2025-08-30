@@ -45,6 +45,7 @@ interface KeyValuePair<TKey, TValue> {
 
 export function useHistoryState<T>(initialPresent: T, options?: HistoryStateOptions<T>): HistoryState<T> {
   const initialPresentRef = React.useRef(initialPresent);
+  const store = options?.store;
 
   const [history, setHistory] = React.useState<HistoryStateInternal<T>>({
     past: [],
@@ -52,14 +53,14 @@ export function useHistoryState<T>(initialPresent: T, options?: HistoryStateOpti
     future: [],
   });
 
-  const [isLoaded, setIsLoaded] = React.useState(!options?.store);
+  const [isLoaded, setIsLoaded] = React.useState(!store);
   React.useEffect(() => {
-    if (!options?.store) {
+    if (!store) {
       return;
     }
 
     let cancelled = false;
-    options.store.getAllEntries().then((entries) => {
+    store.getAllEntries().then((entries) => {
       if (cancelled) {
         return;
       }
@@ -85,7 +86,7 @@ export function useHistoryState<T>(initialPresent: T, options?: HistoryStateOpti
     return () => {
       cancelled = true;
     };
-  }, [options?.store, setHistory, setIsLoaded]);
+  }, [store, setHistory, setIsLoaded]);
 
   const set = React.useCallback(
     (newValue: T) => {
@@ -102,14 +103,13 @@ export function useHistoryState<T>(initialPresent: T, options?: HistoryStateOpti
 
       setHistory({ past: newPast, present: newPresent, future: [] });
 
-      const store = options?.store;
       if (store) {
         store.setEntry(newPresent).then(() => {
           if (deletedKeys.length > 0) return store.removeEntries(deletedKeys);
         });
       }
     },
-    [history, options],
+    [history, store],
   );
 
   const undo = React.useCallback(() => {
@@ -120,11 +120,10 @@ export function useHistoryState<T>(initialPresent: T, options?: HistoryStateOpti
     const newFuture = [history.present, ...history.future];
     setHistory({ past: newPast, present: newPresent, future: newFuture });
 
-    const store = options?.store;
     if (store) {
       store.setEntry({ ...history.present, isFuture: true });
     }
-  }, [history, options]);
+  }, [history, store]);
 
   const redo = React.useCallback(() => {
     if (history.future.length <= 0) return;
@@ -134,23 +133,21 @@ export function useHistoryState<T>(initialPresent: T, options?: HistoryStateOpti
     const newFuture = history.future.slice(1);
     setHistory({ past: newPast, present: newPresent, future: newFuture });
 
-    const store = options?.store;
     if (store) {
       store.setEntry({ ...newPresent });
     }
-  }, [history, options]);
+  }, [history, store]);
 
   const clear = React.useCallback(() => {
     const newPresent: HistoryEntry<T> = { key: 1, value: initialPresentRef.current };
     setHistory({ past: [], present: newPresent, future: [] });
 
-    const store = options?.store;
     if (store) {
       store.clear().then(() => {
         return store.setEntry({ ...newPresent });
       });
     }
-  }, [history.past, history.future, options, initialPresentRef]);
+  }, [history.past, history.future, store, initialPresentRef]);
 
   const getPast = React.useCallback(() => {
     return Object.freeze(history.past.map((e) => e.value));

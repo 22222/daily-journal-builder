@@ -14,9 +14,12 @@ describe("useHistoryState", () => {
     value: TValue;
   }
 
-  const KEY_ROLLOVER = 100;
+  // We are using a rollover system, where the keys automatically reset so they won't keep increasing forever.
+  // So that makes the comparison a little complicated, where small values can actually be sorted above larger values
+  // (small values after a rollover come before values that are after a rollover).
+  // This works assuming that old entries will be purged before the rollover threshold is reached.
+  const KEY_ROLLOVER = 1000;
   const KEY_ROLLOVER_THRESHOLD = KEY_ROLLOVER / 2;
-
   function compareEntries(a: HistoryEntry<any>, b: HistoryEntry<any>): number {
     const diff = (a.key - b.key + KEY_ROLLOVER) % KEY_ROLLOVER;
     if (diff === 0) return 0;

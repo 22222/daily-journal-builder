@@ -42,6 +42,7 @@ import {
   IconFileEarmarkPlus,
   IconPlus,
   IconQuestionCircle,
+  IconTrash,
 } from "./icons";
 import { resizeImageAsync } from "./imageResizer";
 import { Layout, LayoutItem, buildLayout } from "./layoutBuilder";
@@ -82,6 +83,7 @@ export function DailyJournalBuilder(props: DailyJournalBuilderProps) {
     undo,
     redo,
     isPending: isDailyJournalDataPending,
+    clear: clearHistoryState,
   } = useHistoryState<DailyJournalData>(createDefaultDailyJournalInputData(initialData), {
     store: props.historyStateStore,
   });
@@ -162,7 +164,7 @@ export function DailyJournalBuilder(props: DailyJournalBuilderProps) {
       gap,
     });
     const t1 = performance.now();
-    console.log("Layout took " + (t1 - t0) + " milliseconds.");
+    //console.log("Layout took " + (t1 - t0) + " milliseconds.");
 
     if (layout) {
       for (const cell of layout.cells) {
@@ -177,12 +179,12 @@ export function DailyJournalBuilder(props: DailyJournalBuilderProps) {
     }
 
     const t2 = performance.now();
-    console.log("Font size calculation took " + (t2 - t1) + " milliseconds.");
+    //console.log("Font size calculation took " + (t2 - t1) + " milliseconds.");
 
     //React.startTransition(() => {
     setLayout(layout);
     //});
-  }, [items]);
+  }, [items, layoutWidth, layoutHeight, gap]);
 
   React.useEffect(() => {
     startTourHighlightIfNecessary();
@@ -198,6 +200,14 @@ export function DailyJournalBuilder(props: DailyJournalBuilderProps) {
     newDailyJournalInputData.header = createNewHeader(dailyJournalData.header);
     newDailyJournalInputData.items = [];
     setDailyJournalData(newDailyJournalInputData);
+  };
+
+  const handleClear = () => {
+    const ok = window.confirm("Clear all stored data? This cannot be undone.");
+    if (!ok) return;
+    handleNew();
+    clearHistoryState();
+    props.historyStateStore?.clear();
   };
 
   function createNewHeader(oldHeader?: DailyJournalHeaderOrFooterItem) {
@@ -284,7 +294,6 @@ export function DailyJournalBuilder(props: DailyJournalBuilderProps) {
   }
 
   function handleAddTextBox() {
-    console.log("handleAddTextBox");
     showModal({
       getContent: (onClose) => {
         const handleSave = (textBoxData: TextBoxData) => {
@@ -568,7 +577,7 @@ export function DailyJournalBuilder(props: DailyJournalBuilderProps) {
 
     // TODO: try to get date from header before falling back to now
     const now = new Date();
-    const dateStr = `${now.getFullYear().toString().padStart(4, "0")}-${(now.getMonth() + 1).toString().padStart(2, "0")}--${now.getDate().toString().padStart(2, "0")}`;
+    const dateStr = `${now.getFullYear().toString().padStart(4, "0")}-${(now.getMonth() + 1).toString().padStart(2, "0")}-${now.getDate().toString().padStart(2, "0")}`;
     const fileName = `dailyjournal-${dateStr}.pdf`;
     await saveAs(pdfBlob, fileName);
   };
@@ -595,7 +604,7 @@ export function DailyJournalBuilder(props: DailyJournalBuilderProps) {
 
     // TODO: try to get date from header before falling back to now
     const now = new Date();
-    const dateStr = `${now.getFullYear().toString().padStart(4, "0")}-${(now.getMonth() + 1).toString().padStart(2, "0")}--${now.getDate().toString().padStart(2, "0")}`;
+    const dateStr = `${now.getFullYear().toString().padStart(4, "0")}-${(now.getMonth() + 1).toString().padStart(2, "0")}-${now.getDate().toString().padStart(2, "0")}`;
     const fileName = `dailyjournal-${dateStr}.docx`;
     await saveAs(docxBlob, fileName);
   };
@@ -622,7 +631,7 @@ export function DailyJournalBuilder(props: DailyJournalBuilderProps) {
 
     // TODO: try to get date from header before falling back to now
     const now = new Date();
-    const dateStr = `${now.getFullYear().toString().padStart(4, "0")}-${(now.getMonth() + 1).toString().padStart(2, "0")}--${now.getDate().toString().padStart(2, "0")}`;
+    const dateStr = `${now.getFullYear().toString().padStart(4, "0")}-${(now.getMonth() + 1).toString().padStart(2, "0")}-${now.getDate().toString().padStart(2, "0")}`;
     const fileName = `dailyjournal-${dateStr}.mht`;
     await saveAs(pubBlob, fileName);
   };
@@ -696,6 +705,17 @@ export function DailyJournalBuilder(props: DailyJournalBuilderProps) {
               <button type="button" className="btn btn-secondary" onClick={handleNew} title="New" aria-label="New">
                 <IconFileEarmarkPlus /> New
               </button>
+              {props.historyStateStore && (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleClear}
+                  title="Reset all..."
+                  aria-label="Reset all"
+                >
+                  <IconTrash />
+                </button>
+              )}
             </div>
             <div className="btn-group" data-tour="undo-redo">
               <button
@@ -845,7 +865,7 @@ function ImageWrapper(props: ImageWrapperProps) {
         console.error(`Failed to load image file for name "${imageName}"`, err);
         return undefined;
       }),
-    [imageName],
+    [imageName, resolveImageFile],
   );
 
   return (
@@ -897,7 +917,7 @@ function Image(props: ImageProps) {
     return () => {
       URL.revokeObjectURL(objectURL);
     };
-  }, [imageFile]);
+  }, [imageFile, isPending, error]);
 
   // if (isPending) {
   //   return (
@@ -907,10 +927,11 @@ function Image(props: ImageProps) {
   //   );
   // }
 
+  const alt = "Uploaded image " + (imageFile && "name" in imageFile ? imageFile.name : "");
   return (
     <img
       src={imageObjectUrl}
-      alt=""
+      alt={alt}
       width={imageWidth}
       height={imageHeight}
       style={{
@@ -922,60 +943,6 @@ function Image(props: ImageProps) {
     />
   );
 }
-
-// interface FileUploadZoneProps {
-//   onFileListUploaded(fileList: FileList | null | undefined): Promise<void>;
-// }
-
-// function FileUploadZone(props: FileUploadZoneProps) {
-//   const { onFileListUploaded } = props;
-//   const [submitting, setSubmitting] = React.useState(false);
-//   return (
-//     <div
-//       style={{ border: "1px solid black", height: "100px" }}
-//       onDragOver={(e) => {
-//         e.preventDefault();
-//         console.log("drag over");
-//       }}
-//       onDragEnter={(e) => {
-//         e.preventDefault();
-//         console.log("drag enter");
-//       }}
-//       onDragLeave={(e) => {
-//         e.preventDefault();
-//         console.log("drag leave");
-//       }}
-//       onDrop={(e) => {
-//         e.preventDefault();
-//         console.log("drop", e);
-//         onFileListUploaded(e.dataTransfer.files);
-//       }}
-//     >
-//       Drop Pictures Here
-//       <div>
-//         <input
-//           type="file"
-//           accept="image/*"
-//           multiple
-//           placeholder="Pictures"
-//           disabled={submitting}
-//           onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-//             e.preventDefault();
-//             if (submitting) {
-//               return;
-//             }
-
-//             setSubmitting(true);
-//             onFileListUploaded(e.target.files).finally(() => {
-//               e.target.value = "";
-//               setSubmitting(false);
-//             });
-//           }}
-//         />
-//       </div>
-//     </div>
-//   );
-// }
 
 function TextBoxDataView({
   data,
@@ -1282,8 +1249,6 @@ async function generateDocumentContextAsync(props: {
   const resolvedFontFamilies = new Set<string>();
   const imagesRecord: Record<string, File | Blob> = {};
 
-  console.log("generateDocumentContextAsync", dailyJournalDocument);
-
   // const fallbackFontFamily = "Helvetica";
   // if (!resolvedFontFamilies.has(fallbackFontFamily)) {
   //   let fallbackFamilyFonts = await resolveFontFaces(fallbackFontFamily);
@@ -1344,7 +1309,7 @@ async function generateDocumentContextAsync(props: {
         const targetHeight = cell.height * 3;
         if (item.width > targetWidth || item.height > targetHeight) {
           // Resize the image down to the target
-          console.log(`Resizing image ${item.name} from width ${item.width} to ${targetWidth}`);
+          //console.log(`Resizing image ${item.name} from width ${item.width} to ${targetWidth}`);
           const resizedImageFile = await resizeImageAsync(imageFile, targetWidth, targetHeight);
           if (resizedImageFile) {
             imageFile = resizedImageFile;

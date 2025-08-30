@@ -235,8 +235,6 @@ function TextBoxDataView({
     fontStyle: style?.fontStyle,
   };
 
-  console.log("TextBoxDataView", style.zIndex, style, data);
-
   let textElement: React.ReactNode;
   if (data.richText) {
     textElement = <RichTextNodeView node={data.richText} context={richTextNodeContext} />;

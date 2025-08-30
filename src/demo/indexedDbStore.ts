@@ -104,7 +104,7 @@ function setupSessionResponder(sessionId: string) {
   const channel = new BroadcastChannel(CHANNEL_NAME);
   channel.onmessage = (event) => {
     if (event.data?.type === "ping") {
-      console.log("pong", sessionId);
+      //console.log("pong", sessionId);
       channel.postMessage({ type: "pong", sessionId });
     }
   };
@@ -117,15 +117,15 @@ async function getActiveSessionIds(timeout = 500): Promise<Set<string>> {
     const activeSessions = new Set<string>();
     channel.onmessage = (event) => {
       if (event.data?.type === "pong" && event.data.sessionId) {
-        console.log("pong received", event.data.sessionId);
+        //console.log("pong received", event.data.sessionId);
         activeSessions.add(event.data.sessionId);
       }
     };
-    console.log("ping start");
+    //console.log("ping start");
     channel.postMessage({ type: "ping" });
     setTimeout(() => {
       channel.close();
-      console.log("ping end");
+      //console.log("ping end");
       resolve(activeSessions);
     }, timeout);
   });

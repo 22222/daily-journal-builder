@@ -458,7 +458,7 @@ export function calculateHeaderTextHeightPx(data: TextBoxData): { height: number
     try {
       lineHeight = convertLengthValueToPxOrUndefined(getComputedStyle(pEl).lineHeight);
     } catch (err) {
-      console.log("Error getting lineHeight", err);
+      console.error("Error getting lineHeight", err);
     }
   } finally {
     el.remove();

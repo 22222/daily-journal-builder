@@ -234,11 +234,11 @@ export function convertDailyJournalDataToDocument(
       // if (heightPxOverride) {
       //   heightPxOverride = heightPxOverride - paddingTopPx - paddingBottomPx - borderWidthPx * 2;
       // }
-      console.log("heightPxOverride?", headerItemBoxHeight, heightPxOverride);
+      //console.log("heightPxOverride?", headerItemBoxHeight, heightPxOverride);
 
       if (heightPxOverride && heightPxOverride < headerItemBoxHeight) {
         const heightDifference = headerItemBoxHeight - heightPxOverride;
-        console.log("heightDifference", heightDifference);
+        //console.log("heightDifference", heightDifference);
         if (heightDifference > 1) {
           heightPx = heightPxOverride;
           topPx += heightDifference / 2;

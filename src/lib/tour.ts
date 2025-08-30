@@ -1,6 +1,7 @@
 import { driver } from "driver.js";
 import "driver.js/dist/driver.css";
-import tourImageActions from "./images/tour-image-actions.webp";
+import imageOverview from "./images/tour-overview.webp";
+import imageActions from "./images/tour-actions.webp";
 //import type { Driver, DriverHook, Popover, DriveStep, Config, State } from "driver.js";
 
 export function startTourHighlightIfNecessary() {
@@ -37,6 +38,18 @@ export function startTour() {
   const driverObj = driver({
     showProgress: true,
     steps: [
+        {
+        element: undefined,
+        popover: {
+          title: "Overview",
+          description: `<p><img src="${imageOverview}" alt="Sample document" width="400" height="211" style="width: 100%; height: 100%; object-fit: scale-down" /></p>
+
+<p>This app generates a one-page journal of pictures and text with a fully automated layout.</p>
+
+<p>This is a purely local app.  Nothing you enter is uploaded or sent anywhere.</p>`,
+          side: "bottom",
+        },
+      },
       {
         element: '[data-tour="add-picture"]',
         popover: {
@@ -58,11 +71,15 @@ export function startTour() {
       {
         element: undefined,
         popover: {
-          title: "Take action",
-          description: `<p><img src="${tourImageActions}" style="width: 100%; height: 100%"; object-fit: scale-down" /></p>
-<p>Click on a picture or text box to show some action buttons.</p>
-<p>Reorder pictures or text boxes with the arrow buttons.</p>
-<p>Mark items you want to highlight with the star button and we'll try to choose layouts that keep it as big as possible.</p>`,
+          title: "Item actions",
+          description: `<p><img src="${imageActions}" alt="Action buttons" width="400" height="209" style="width: 100%; height: 100%; object-fit: scale-down" /></p>
+<p>Click on a picture or text box to see actions you can take on it:</p>
+<ul>
+<li><b>Arrows:</b> reorder items</li>
+<li><b>Star:</b> prefer to keep this item bigger</li>
+<li><b>Pencil:</b> edit the text box</li>
+<li><b>Trash:</b> remove the item</li>
+</ul>`,
           side: "bottom",
         },
       },
@@ -71,7 +88,7 @@ export function startTour() {
         popover: {
           title: "Publish",
           description:
-            "<p>You can save your document as a PDF.</p>  <p>Or if you want to make more changes, download it as a file that can be opened in Microsoft Publisher.</p>",
+            "<p>Save your document as a PDF.</p>  <p>Or download it as a file that can be opened in Microsoft Publisher.</p>",
           side: "bottom",
         },
       },
@@ -80,16 +97,18 @@ export function startTour() {
         popover: {
           title: "New",
           description:
-            "<p>When you're done, start a new document.</p>  <p>This removes all pictures and textboxes and resets the date to today.</p>",
+            `<p>When you're done, start a new document.</p>
+<p>This removes all pictures and textboxes and resets the date to today.</p>
+<p>You can also use the Trash icon to delete all stored data, including your undo/redo history.</p>`,
           side: "bottom",
         },
       },
       {
         element: '[data-tour="undo-redo"]',
         popover: {
-          title: "Undo",
+          title: "Undo / redo",
           description:
-            "<p>Use the undo and redo buttons if you want to revert a change.</p>  <p>The undo history will be saved even if you reload the page.</p>",
+            "<p>The undo and redo buttons let you revert a change.</p>  <p>The undo history will be saved even if you close this page and come back later.</p>",
           side: "bottom",
         },
       },

@@ -178,12 +178,6 @@ function createTextBox(
   //     style: BorderStyle.NONE,
   //     size: 0,
   //   };
-  console.log(
-    "borderStyle",
-    borderStyle,
-    style.borderWidth,
-    convertLengthValueToEighthPtOrUndefined(style.borderWidth),
-  );
 
   const richTextNodeContext: RichTextNodeContext = {
     //registeredFontMap,
@@ -313,7 +307,7 @@ function convertRichTextNode(node: RichTextNode, context: RichTextNodeContext): 
     return p;
   }
 
-  console.log("Unrecognized node type", node.type, node);
+  //console.log("Unrecognized node type", node.type, node);
 
   return children[0];
 }

@@ -178,7 +178,7 @@ export function buildLayout<T extends LayoutItem>(items: T[], options: BuildLayo
       const rowWidth = scaleWidthToTargetHeight(unscaledRowWidth, unscaledRowHeight, rowHeight);
       if (rowWidth < layoutWidth) {
         const extraRowWidth = layoutWidth - rowWidth;
-        console.log("extraRowWidth", layoutWidth, rowWidth, flexibleItemCount, cell);
+        //console.log("extraRowWidth", layoutWidth, rowWidth, flexibleItemCount, cell);
         cellWidth += Math.floor(extraRowWidth / flexibleItemCount);
       }
     }

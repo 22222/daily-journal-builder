@@ -5,16 +5,16 @@ import react from "@vitejs/plugin-react";
 // https://vitejs.dev/config/
 // eslint-disable-next-line no-restricted-exports
 export default defineConfig({
-    plugins: [
-        //topLevelAwait(),
-        react(),
-        //viteSingleFile({ removeViteModuleLoader: true }),
-    ],
-    build: {
-        //minify: false,
-        target: "ES2022",
-    },
-    // build: {
-    //   target: "ES2022",
-    // },
+  plugins: [
+    //topLevelAwait(),
+    react(),
+    //viteSingleFile({ removeViteModuleLoader: true }),
+  ],
+  build: {
+    //minify: false,
+    target: "ES2022",
+  },
+  // build: {
+  //   target: "ES2022",
+  // },
 });
