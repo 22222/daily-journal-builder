@@ -647,7 +647,7 @@ export function DailyJournalBuilder(props: DailyJournalBuilderProps) {
           minWidth: "fit-content",
         }}
       >
-        <header className="container mb-1">
+        <header className="container-lg mb-1">
           <div className="btn-toolbar gap-1">
             <div className="btn-group">
               <FileUploadButton
@@ -755,7 +755,7 @@ export function DailyJournalBuilder(props: DailyJournalBuilderProps) {
           </div>
         </header>
 
-        <div className="container">
+        <div className="container-lg">
           <article
             style={{
               color: "black",
